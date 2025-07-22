@@ -5,7 +5,6 @@ import LoadingSpinner from "@/components/LoadingSpinner"
 import Navbar from "@/components/Navbar"
 import BINChecker from "@/components/BINChecker"
 import { getBankingStatistics } from "@/app/actions/card-validation"
-import type { CardInfo } from "@/types/card"
 import { Database, CreditCard, Building, TrendingUp } from "lucide-react"
 
 export default async function BINCheckerPage() {

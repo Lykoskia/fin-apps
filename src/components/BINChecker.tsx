@@ -181,7 +181,7 @@ export default function BINChecker({ onValidationChange, className = "" }: BINCh
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted-foreground">Brzi test:</span>
-            {quickTestCards.map((card, index) => (
+            {quickTestCards.map((card) => (
               <Button
                 key={card.number}
                 variant="outline"
