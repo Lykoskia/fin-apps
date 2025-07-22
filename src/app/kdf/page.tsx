@@ -2,7 +2,6 @@ import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import EnhancedMnemonicKDF from "@/components/EnhancedMnemonicKDF"
 import LoadingSpinner from "@/components/LoadingSpinner"
-import Navbar from "@/components/Navbar"
 import { Key, Shield, Zap, AlertTriangle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -33,7 +32,6 @@ export default function KDFPage() {
   return (
     <main className="min-h-screen p-4 xl:p-6">
       <div className="max-w-7xl mx-auto space-y-8">
-        <Navbar />
         
         {/* Page Header */}
         <div className="space-y-4">

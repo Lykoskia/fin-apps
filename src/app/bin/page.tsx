@@ -2,7 +2,6 @@ import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import LoadingSpinner from "@/components/LoadingSpinner"
-import Navbar from "@/components/Navbar"
 import BINChecker from "@/components/BINChecker"
 import { getBankingStatistics } from "@/app/actions/card-validation"
 import { Database, CreditCard, Building, TrendingUp } from "lucide-react"
@@ -13,7 +12,6 @@ export default async function BINCheckerPage() {
   return (
     <main className="min-h-screen p-4 xl:p-6">
       <div className="max-w-7xl mx-auto space-y-8">
-        <Navbar />
         
         {/* Page Header */}
         <div className="space-y-4">

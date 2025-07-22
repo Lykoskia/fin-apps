@@ -2,7 +2,6 @@ import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import PaymentForm from "@/components/PaymentForm"
 import LoadingSpinner from "@/components/LoadingSpinner"
-import Navbar from "@/components/Navbar"
 import { QrCode, Zap, Shield, Download } from "lucide-react"
 
 export const metadata = {
@@ -32,7 +31,6 @@ export default function BarcodeGeneratorPage() {
   return (
     <main className="min-h-screen p-4 xl:p-6">
       <div className="max-w-7xl mx-auto space-y-8">
-        <Navbar />
         
         {/* Page Header */}
         <div className="space-y-4">
