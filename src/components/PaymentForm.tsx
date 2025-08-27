@@ -487,16 +487,16 @@ const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
 const ValidationSummaryCard: React.FC<{ iban: string }> = ({ iban }) => {
   const validateIBANDetailed = (ibanValue: string): ValidationResult => {
     const steps: ValidationStep[] = [];
-    let country = false, checkDigits = false, length = false, account = false;
+    let checkDigits = false, account = false;
 
     if (!ibanValue) {
-      return { country, checkDigits, length, account, overall: false, steps };
+      return { country: false, checkDigits: false, length: false, account: false, overall: false, steps };
     }
 
     const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
 
-    country = cleanIban.startsWith('HR');
-    length = cleanIban.length === 21;
+    const country = cleanIban.startsWith('HR');
+    const length = cleanIban.length === 21;
 
     if (country && length) {
       try {
