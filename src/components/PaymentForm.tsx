@@ -289,16 +289,16 @@ const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
 const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
   const validateIBANDetailed = (ibanValue: string): ValidationResult => {
     const steps: ValidationStep[] = [];
-    let country = false, checkDigits = false, length = false, account = false;
+    let checkDigits = false, account = false;
 
     if (!ibanValue) {
-      return { country, checkDigits, length, account, overall: false, steps };
+      return { country: false, checkDigits: false, length: false, account: false, overall: false, steps };
     }
 
     const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
 
     // Country check
-    country = cleanIban.startsWith('HR');
+    const country = cleanIban.startsWith('HR');
     steps.push({
       description: "Kod zemlje",
       result: cleanIban.substring(0, 2),
@@ -307,7 +307,7 @@ const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
     });
 
     // Length check
-    length = cleanIban.length === 21;
+    const length = cleanIban.length === 21;
     steps.push({
       description: "Duljina",
       result: `${cleanIban.length}/21`,
@@ -404,10 +404,10 @@ const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
 const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
   const validateBankAccount = (ibanValue: string): ValidationResult => {
     const steps: ValidationStep[] = [];
-    let country = false, checkDigits = false, length = false, account = false;
+    let checkDigits = false, account = false;
 
     if (!ibanValue || ibanValue.length < 11) {
-      return { country, checkDigits, length, account, overall: false, steps };
+      return { country: false, checkDigits: false, length: false, account: false, overall: false, steps };
     }
 
     const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
@@ -435,7 +435,7 @@ const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
     });
 
     const overall = checkDigits && account;
-    return { country, checkDigits, length, account, overall, steps };
+    return { country: false, checkDigits, length: false, account, overall, steps };
   };
 
   const validationResults = validateBankAccount(iban);
