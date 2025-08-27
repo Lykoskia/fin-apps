@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { LuPlay, LuX, LuDownload, LuShare2, LuLoader, LuTestTube, LuRotateCcw } from "react-icons/lu"
+import { LuPlay, LuDownload, LuShare2, LuLoader, LuTestTube, LuRotateCcw } from "react-icons/lu"
 import { useSearchParamsState } from "@/hooks/useSearchParamsState"
 import type { SubmitPaymentFormResult } from "@/lib/types"
 import Image from "next/image"
@@ -18,7 +18,6 @@ import type { PaymentFormData } from "@/lib/schema"
 import { purposeValues } from "@/lib/croatianPaymentData"
 import { PlaceLookup } from "./PlaceLookup"
 import AmountInput from "@/components/AmountInput"
-import { IBANCalculator } from "./IBANCalculator"
 import LoadingSpinner from "./LoadingSpinner"
 import { useToast } from "@/hooks/use-toast"
 import { EnhancedDataManager } from "./EnhancedDataManager"
@@ -28,7 +27,7 @@ import BarcodeDecoder from "./BarcodeDecoder"
 // Updated validation components with theme-aware colors and always-visible content
 import React from "react"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, XCircle, AlertCircle, Eye, EyeOff, AlertTriangle, ArrowRight, Lightbulb, Terminal } from "lucide-react"
+import { CheckCircle, XCircle, AlertCircle, Eye, EyeOff, ArrowRight, Lightbulb, Terminal } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ValidationStep {
@@ -212,7 +211,7 @@ const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
         explanation: `Trebaju biti: ${formattedControlDigits}, u IBAN-u: ${cleanIban.substring(2, 4)}`
       });
 
-    } catch (error) {
+    } catch {
       steps.push({
         description: "Greška u izračunu",
         type: 'error',
@@ -290,33 +289,33 @@ const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
 const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
   const validateIBANDetailed = (ibanValue: string): ValidationResult => {
     const steps: ValidationStep[] = [];
-    let validationResults = { country: false, checkDigits: false, length: false, account: false, overall: false };
+    let country = false, checkDigits = false, length = false, account = false;
 
     if (!ibanValue) {
-      return { ...validationResults, steps };
+      return { country, checkDigits, length, account, overall: false, steps };
     }
 
     const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
 
     // Country check
-    validationResults.country = cleanIban.startsWith('HR');
+    country = cleanIban.startsWith('HR');
     steps.push({
       description: "Kod zemlje",
       result: cleanIban.substring(0, 2),
-      type: validationResults.country ? 'success' : 'error',
-      explanation: validationResults.country ? "✓ Hrvatska (HR)" : "✗ Mora počinjati s HR"
+      type: country ? 'success' : 'error',
+      explanation: country ? "✓ Hrvatska (HR)" : "✗ Mora počinjati s HR"
     });
 
     // Length check
-    validationResults.length = cleanIban.length === 21;
+    length = cleanIban.length === 21;
     steps.push({
       description: "Duljina",
       result: `${cleanIban.length}/21`,
-      type: validationResults.length ? 'success' : 'error',
-      explanation: validationResults.length ? "✓ Ispravna duljina" : `✗ Mora imati točno 21 znak (trenutno ${cleanIban.length})`
+      type: length ? 'success' : 'error',
+      explanation: length ? "✓ Ispravna duljina" : `✗ Mora imati točno 21 znak (trenutno ${cleanIban.length})`
     });
 
-    if (validationResults.country && validationResults.length) {
+    if (country && length) {
       // Checksum validation
       try {
         const rearranged = cleanIban.substring(4) + "1727";
@@ -325,26 +324,26 @@ const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
           remainder = (remainder * 10 + parseInt(rearranged[i])) % 97;
         }
         
-        validationResults.checkDigits = remainder === 1;
+        checkDigits = remainder === 1;
         steps.push({
           description: "Kontrolne znamenke",
-          result: validationResults.checkDigits ? "Ispravne" : "Neispravne",
-          type: validationResults.checkDigits ? 'success' : 'error',
-          explanation: validationResults.checkDigits ? "✓ Matematički ispravne" : "✗ Pogrešan kontrolni broj"
+          result: checkDigits ? "Ispravne" : "Neispravne",
+          type: checkDigits ? 'success' : 'error',
+          explanation: checkDigits ? "✓ Matematički ispravne" : "✗ Pogrešan kontrolni broj"
         });
 
         // Account number check (simple format check)
         const accountNumber = cleanIban.substring(11, 21);
-        validationResults.account = /^\d{10}$/.test(accountNumber);
+        account = /^\d{10}$/.test(accountNumber);
         steps.push({
           description: "Broj računa",
           result: accountNumber,
-          type: validationResults.account ? 'success' : 'error',
-          explanation: validationResults.account ? "✓ Ispravan format" : "✗ Mora biti 10 znamenki"
+          type: account ? 'success' : 'error',
+          explanation: account ? "✓ Ispravan format" : "✗ Mora biti 10 znamenki"
         });
-      } catch (error) {
-        validationResults.checkDigits = false;
-        validationResults.account = false;
+      } catch {
+        checkDigits = false;
+        account = false;
         steps.push({
           description: "Greška validacije",
           type: 'error',
@@ -353,9 +352,8 @@ const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
       }
     }
 
-    validationResults.overall = validationResults.country && validationResults.length && validationResults.checkDigits && validationResults.account;
-
-    return { ...validationResults, steps };
+    const overall = country && length && checkDigits && account;
+    return { country, checkDigits, length, account, overall, steps };
   };
 
   const validationResults = validateIBANDetailed(iban);
@@ -406,10 +404,10 @@ const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
 const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
   const validateBankAccount = (ibanValue: string): ValidationResult => {
     const steps: ValidationStep[] = [];
-    let validationResults = { country: false, checkDigits: false, length: false, account: false, overall: false };
+    let country = false, checkDigits = false, length = false, account = false;
 
     if (!ibanValue || ibanValue.length < 11) {
-      return { ...validationResults, steps };
+      return { country, checkDigits, length, account, overall: false, steps };
     }
 
     const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
@@ -418,27 +416,26 @@ const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
 
     // Bank code validation
     const validBankCodePattern = /^\d{7}$/;
-    validationResults.checkDigits = validBankCodePattern.test(bankCode);
+    checkDigits = validBankCodePattern.test(bankCode);
     steps.push({
       description: "Kod banke",
       result: bankCode,
-      type: validationResults.checkDigits ? 'success' : 'error',
-      explanation: validationResults.checkDigits ? "✓ 7 znamenki" : "✗ Mora biti 7 znamenki"
+      type: checkDigits ? 'success' : 'error',
+      explanation: checkDigits ? "✓ 7 znamenki" : "✗ Mora biti 7 znamenki"
     });
 
     // Account number validation  
     const validAccountPattern = /^\d{10}$/;
-    validationResults.account = validAccountPattern.test(accountNumber);
+    account = validAccountPattern.test(accountNumber);
     steps.push({
       description: "Broj računa",
       result: accountNumber || "N/A",
-      type: validationResults.account ? 'success' : 'error',
-      explanation: validationResults.account ? "✓ 10 znamenki" : "✗ Mora biti 10 znamenki"
+      type: account ? 'success' : 'error',
+      explanation: account ? "✓ 10 znamenki" : "✗ Mora biti 10 znamenki"
     });
 
-    validationResults.overall = validationResults.checkDigits && validationResults.account;
-
-    return { ...validationResults, steps };
+    const overall = checkDigits && account;
+    return { country, checkDigits, length, account, overall, steps };
   };
 
   const validationResults = validateBankAccount(iban);
@@ -490,37 +487,36 @@ const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
 const ValidationSummaryCard: React.FC<{ iban: string }> = ({ iban }) => {
   const validateIBANDetailed = (ibanValue: string): ValidationResult => {
     const steps: ValidationStep[] = [];
-    let validationResults = { country: false, checkDigits: false, length: false, account: false, overall: false };
+    let country = false, checkDigits = false, length = false, account = false;
 
     if (!ibanValue) {
-      return { ...validationResults, steps };
+      return { country, checkDigits, length, account, overall: false, steps };
     }
 
     const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
 
-    validationResults.country = cleanIban.startsWith('HR');
-    validationResults.length = cleanIban.length === 21;
+    country = cleanIban.startsWith('HR');
+    length = cleanIban.length === 21;
 
-    if (validationResults.country && validationResults.length) {
+    if (country && length) {
       try {
         const rearranged = cleanIban.substring(4) + "1727";
         let remainder = 0;
         for (let i = 0; i < rearranged.length; i++) {
           remainder = (remainder * 10 + parseInt(rearranged[i])) % 97;
         }
-        validationResults.checkDigits = remainder === 1;
+        checkDigits = remainder === 1;
 
         const accountNumber = cleanIban.substring(11, 21);
-        validationResults.account = /^\d{10}$/.test(accountNumber);
-      } catch (error) {
-        validationResults.checkDigits = false;
-        validationResults.account = false;
+        account = /^\d{10}$/.test(accountNumber);
+      } catch {
+        checkDigits = false;
+        account = false;
       }
     }
 
-    validationResults.overall = validationResults.country && validationResults.length && validationResults.checkDigits && validationResults.account;
-
-    return { ...validationResults, steps };
+    const overall = country && length && checkDigits && account;
+    return { country, checkDigits, length, account, overall, steps };
   };
 
   const validationResults = validateIBANDetailed(iban);
