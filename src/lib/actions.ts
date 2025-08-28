@@ -18,7 +18,8 @@ export async function submitPaymentForm(formData: z.infer<typeof paymentFormSche
     const barcodeUrl = await generateBarcode(barcodeData)
 
     return { success: true, barcodeUrl }
-  } catch {
+  } catch (error) {
+    console.error('Barcode generation error:', error);
     return {
       success: false,
       errors: {
@@ -29,42 +30,57 @@ export async function submitPaymentForm(formData: z.infer<typeof paymentFormSche
   }
 }
 
+// Ensure proper encoding of Croatian characters
+function normalizeCroatianText(text: string): string {
+  // Ensure Croatian characters are properly normalized
+  return text.normalize('NFC');
+}
+
 function formatHUB3Data(data: PaymentFormData): string {
   const amountString = data.amount
     .replace(/\./g, "")
     .replace(",", "")
     .padStart(15, "0");
 
-  return [
+  // Normalize all text fields to ensure proper Croatian character encoding
+  const hub3Data = [
     "HRVHUB30",
     "EUR",
     amountString,
-    data.senderName,
-    data.senderStreet,
-    `${data.senderPostcode} ${data.senderCity}`,
-    data.receiverName,
-    data.receiverStreet,
-    `${data.receiverPostcode} ${data.receiverCity}`,
-    data.iban,
-    `HR${data.model}`,
-    data.reference,
-    data.purpose,
-    data.description,
-  ].join("\n")
+    normalizeCroatianText(data.senderName || ""),
+    normalizeCroatianText(data.senderStreet || ""),
+    normalizeCroatianText(`${data.senderPostcode || ""} ${data.senderCity || ""}`).trim(),
+    normalizeCroatianText(data.receiverName || ""),
+    normalizeCroatianText(data.receiverStreet || ""),
+    normalizeCroatianText(`${data.receiverPostcode || ""} ${data.receiverCity || ""}`).trim(),
+    data.iban || "",
+    `HR${data.model || "00"}`,
+    data.reference || "",
+    data.purpose || "OTHR",
+    normalizeCroatianText(data.description || ""),
+  ];
+  
+  const formattedData = hub3Data.join("\n");
+  console.log('Formatted HUB3 data:', formattedData);
+  return formattedData;
 }
 
 async function generateBarcode(data: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
+    // Ensure data is properly encoded as UTF-8
+    const utf8Data = Buffer.from(data, 'utf8').toString('utf8');
+    
     bwipjs.toBuffer(
       {
         bcid: "pdf417",
-        text: data,
+        text: utf8Data,
         scale: 3,
         height: 10,
-        width: 0.254
+        width: 0.254,
       },
       (err, png) => {
         if (err) {
+          console.error('bwip-js error:', err);
           reject(err instanceof Error ? err : new Error(String(err)))
         } else {
           const buffer = Buffer.isBuffer(png) ? png : Buffer.from(png)

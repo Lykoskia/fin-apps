@@ -37,7 +37,37 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
   // Parse HUB3 barcode data back into form fields
   const parseHUB3Data = (decodedText: string): Partial<PaymentFormData> => {
     try {
-      const lines = decodedText.split('\n').map(line => line.trim());
+      console.log('Raw decoded text:', decodedText);
+      
+      // Properly handle Croatian character encoding
+      let processedText = decodedText;
+      
+      // Fix common Croatian character encoding issues
+      const croatianCharMap: { [key: string]: string } = {
+        'Ä': 'č',
+        'Ä‡': 'ć', 
+        'Å¾': 'ž',
+        'Å¡': 'š',
+        'Ä\'': 'đ',
+        'Ä\u008d': 'č',
+        'Ä\u0087': 'ć',
+        'Å\u017e': 'ž',
+        'Å\u0161': 'š',
+        'Ä\u0091': 'đ',
+        'Ä\u0107': 'ć',
+        'Ä\u017e': 'ž',
+        'Ä\u0111': 'đ'
+      };
+      
+      // Apply character corrections
+      Object.entries(croatianCharMap).forEach(([encoded, correct]) => {
+        processedText = processedText.replace(new RegExp(encoded, 'g'), correct);
+      });
+      
+      console.log('Processed text after character fix:', processedText);
+      
+      const lines = processedText.split('\n').map(line => line.trim());
+      console.log('Split lines:', lines);
       
       // HUB3 format structure:
       // 0: HRVHUB30 (header)
@@ -56,7 +86,7 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
       // 13: Description
 
       if (lines.length < 14 || lines[0] !== 'HRVHUB30') {
-        throw new Error('Invalid HUB3 barcode format');
+        throw new Error(`Invalid HUB3 barcode format. Expected HRVHUB30, got: ${lines[0]}`);
       }
 
       // Parse amount - convert from 15-digit padded format back to Croatian format
@@ -88,7 +118,7 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
       // Validate and clean the purpose code
       const purposeCode = validatePurposeCode(lines[12] || 'OTHR');
 
-      return {
+      const result = {
         senderName: lines[3] || '',
         senderStreet: lines[4] || '',
         senderPostcode: senderPostcode,
@@ -104,6 +134,9 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
         purpose: purposeCode,
         description: lines[13] || '',
       };
+      
+      console.log('Parsed result:', result);
+      return result;
     } catch (error) {
       console.error('Error parsing HUB3 data:', error);
       throw new Error('Failed to parse barcode data. Please ensure this is a valid HUB3 payment barcode.');
@@ -132,7 +165,10 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
       const result = await codeReader.decodeFromImage(image);
       
       // Parse the decoded text (which should be in HUB3 format)
-      const parsedData = parseHUB3Data(result.getText());
+      // Ensure proper UTF-8 decoding for Croatian characters
+      const rawText = result.getText();
+      console.log('Raw decoded text:', rawText);
+      const parsedData = parseHUB3Data(rawText);
       
       // Clean up
       URL.revokeObjectURL(imageUrl);
