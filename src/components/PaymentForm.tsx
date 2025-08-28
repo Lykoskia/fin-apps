@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { submitPaymentForm } from "@/lib/actions"
@@ -23,9 +23,6 @@ import { useToast } from "@/hooks/use-toast"
 import { EnhancedDataManager } from "./EnhancedDataManager"
 import FormLinkComponent from "./FormLinkComponent"
 import BarcodeDecoder from "./BarcodeDecoder"
-
-// Updated validation components with theme-aware colors and always-visible content
-import React from "react"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, XCircle, AlertCircle, Eye, EyeOff, ArrowRight, Lightbulb, Terminal } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -48,8 +45,11 @@ interface ValidationResult {
   steps: ValidationStep[]
 }
 
-// Enhanced Data Manager handler types - matching the actual interface expected
-type EnhancedDataManagerCallback = (data: Partial<PaymentFormData>) => void
+import { validateIBAN } from "@/lib/croatianPaymentData"
+
+// Add this import at the top with your other imports
+
+type EnhancedDataManagerCallback = (data: Partial<PaymentFormData>) => void;
 
 const IBANStructureDisplay: React.FC<{ iban: string }> = ({ iban }) => {
   const [showDetails, setShowDetails] = useState(true);
@@ -289,7 +289,6 @@ const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
 const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
   const validateIBANDetailed = (ibanValue: string): ValidationResult => {
     const steps: ValidationStep[] = [];
-    let checkDigits = false, account = false;
 
     if (!ibanValue) {
       return { country: false, checkDigits: false, length: false, account: false, overall: false, steps };
@@ -315,41 +314,39 @@ const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
       explanation: length ? "✓ Ispravna duljina" : `✗ Mora imati točno 21 znak (trenutno ${cleanIban.length})`
     });
 
+    // Use the original validateIBAN function for mathematical validation
+    let checkDigits = false;
     if (country && length) {
-      // Checksum validation
       try {
-        const rearranged = cleanIban.substring(4) + "1727";
-        let remainder = 0;
-        for (let i = 0; i < rearranged.length; i++) {
-          remainder = (remainder * 10 + parseInt(rearranged[i])) % 97;
-        }
-        
-        checkDigits = remainder === 1;
+        checkDigits = validateIBAN(cleanIban);
         steps.push({
           description: "Kontrolne znamenke",
           result: checkDigits ? "Ispravne" : "Neispravne",
           type: checkDigits ? 'success' : 'error',
           explanation: checkDigits ? "✓ Matematički ispravne" : "✗ Pogrešan kontrolni broj"
         });
-
-        // Account number check (simple format check)
-        const accountNumber = cleanIban.substring(11, 21);
-        account = /^\d{10}$/.test(accountNumber);
-        steps.push({
-          description: "Broj računa",
-          result: accountNumber,
-          type: account ? 'success' : 'error',
-          explanation: account ? "✓ Ispravan format" : "✗ Mora biti 10 znamenki"
-        });
       } catch {
         checkDigits = false;
-        account = false;
         steps.push({
-          description: "Greška validacije",
+          description: "Kontrolne znamenke",
+          result: "Greška",
           type: 'error',
-          explanation: "Nije moguće provjeriti IBAN"
+          explanation: "✗ Greška pri provjeri"
         });
       }
+    }
+
+    // Account number check (simple format check)
+    let account = false;
+    if (length) {
+      const accountNumber = cleanIban.substring(11, 21);
+      account = /^\d{10}$/.test(accountNumber);
+      steps.push({
+        description: "Broj računa",
+        result: accountNumber,
+        type: account ? 'success' : 'error',
+        explanation: account ? "✓ Ispravan format" : "✗ Mora biti 10 znamenki"
+      });
     }
 
     const overall = country && length && checkDigits && account;
@@ -487,7 +484,6 @@ const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
 const ValidationSummaryCard: React.FC<{ iban: string }> = ({ iban }) => {
   const validateIBANDetailed = (ibanValue: string): ValidationResult => {
     const steps: ValidationStep[] = [];
-    let checkDigits = false, account = false;
 
     if (!ibanValue) {
       return { country: false, checkDigits: false, length: false, account: false, overall: false, steps };
@@ -498,14 +494,13 @@ const ValidationSummaryCard: React.FC<{ iban: string }> = ({ iban }) => {
     const country = cleanIban.startsWith('HR');
     const length = cleanIban.length === 21;
 
+    let checkDigits = false;
+    let account = false;
+
     if (country && length) {
       try {
-        const rearranged = cleanIban.substring(4) + "1727";
-        let remainder = 0;
-        for (let i = 0; i < rearranged.length; i++) {
-          remainder = (remainder * 10 + parseInt(rearranged[i])) % 97;
-        }
-        checkDigits = remainder === 1;
+        // Use the original validateIBAN function
+        checkDigits = validateIBAN(cleanIban);
 
         const accountNumber = cleanIban.substring(11, 21);
         account = /^\d{10}$/.test(accountNumber);
