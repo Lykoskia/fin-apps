@@ -18,6 +18,7 @@ import type { PaymentFormData } from "@/lib/schema"
 import { purposeValues } from "@/lib/croatianPaymentData"
 import { PlaceLookup } from "./PlaceLookup"
 import AmountInput from "@/components/AmountInput"
+import { IBANCalculator } from "./IBANCalculator"
 import LoadingSpinner from "./LoadingSpinner"
 import { useToast } from "@/hooks/use-toast"
 import { EnhancedDataManager } from "./EnhancedDataManager"
@@ -47,18 +48,16 @@ interface ValidationResult {
 
 import { validateIBAN } from "@/lib/croatianPaymentData"
 
-// Add this import at the top with your other imports
-
 type EnhancedDataManagerCallback = (data: Partial<PaymentFormData>) => void;
 
 const IBANStructureDisplay: React.FC<{ iban: string }> = ({ iban }) => {
   const [showDetails, setShowDetails] = useState(true);
-  
+
   const analyzeIBAN = (ibanValue: string): { country: string; check: string; bank: string; account: string; parts: ValidationStep[] } => {
     const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
-    
+
     const parts: ValidationStep[] = [];
-    
+
     if (cleanIban.length >= 2) {
       parts.push({
         description: "Kod zemlje",
@@ -67,7 +66,7 @@ const IBANStructureDisplay: React.FC<{ iban: string }> = ({ iban }) => {
         explanation: cleanIban.startsWith('HR') ? "✓ Hrvatska" : "✗ Nije HR"
       });
     }
-    
+
     if (cleanIban.length >= 4) {
       parts.push({
         description: "Kontrolne znamenke",
@@ -76,7 +75,7 @@ const IBANStructureDisplay: React.FC<{ iban: string }> = ({ iban }) => {
         explanation: "Služe za provjeru ispravnosti IBAN-a"
       });
     }
-    
+
     if (cleanIban.length >= 11) {
       parts.push({
         description: "Kod banke",
@@ -85,7 +84,7 @@ const IBANStructureDisplay: React.FC<{ iban: string }> = ({ iban }) => {
         explanation: "7 znamenki - identifikacija banke"
       });
     }
-    
+
     if (cleanIban.length >= 21) {
       parts.push({
         description: "Broj računa",
@@ -94,7 +93,7 @@ const IBANStructureDisplay: React.FC<{ iban: string }> = ({ iban }) => {
         explanation: "10 znamenki - broj računa"
       });
     }
-    
+
     return {
       country: cleanIban.substring(0, 2),
       check: cleanIban.substring(2, 4),
@@ -159,7 +158,7 @@ const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
 
   const calculateControlDigits = (ibanValue: string): ValidationStep[] => {
     const steps: ValidationStep[] = [];
-    
+
     if (!ibanValue || ibanValue.length < 15) {
       steps.push({
         description: "Nedovoljno podataka za izračun",
@@ -171,7 +170,7 @@ const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
     try {
       const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
       const bankAndAccount = cleanIban.substring(4);
-      
+
       // Step 1: Rearrange - move HR to end and replace with 1727
       const rearranged = bankAndAccount + "1727";
       steps.push({
@@ -185,12 +184,12 @@ const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
       // Step 2: Calculate mod 97
       const numericString = rearranged;
       let remainder = 0;
-      
+
       // Process the number in chunks to avoid overflow
       for (let i = 0; i < numericString.length; i++) {
         remainder = (remainder * 10 + parseInt(numericString[i])) % 97;
       }
-      
+
       steps.push({
         description: "Izračun ostatka",
         calculation: `${numericString} mod 97`,
@@ -202,7 +201,7 @@ const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
       // Step 3: Calculate control digits
       const controlDigits = 98 - remainder;
       const formattedControlDigits = controlDigits.toString().padStart(2, '0');
-      
+
       steps.push({
         description: "Kontrolne znamenke",
         calculation: `98 - ${remainder}`,
@@ -270,8 +269,8 @@ const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
                   </div>
                 </div>
                 {step.result && (
-                  <Badge 
-                    variant={step.type === 'success' ? 'default' : step.type === 'error' ? 'destructive' : 'secondary'} 
+                  <Badge
+                    variant={step.type === 'success' ? 'default' : step.type === 'error' ? 'destructive' : 'secondary'}
                     className="font-mono text-xs flex-shrink-0"
                   >
                     {step.result}
@@ -534,13 +533,13 @@ const ValidationSummaryCard: React.FC<{ iban: string }> = ({ iban }) => {
               {validationResults.overall ? "IBAN je valjan ✓" : "IBAN nije valjan ✗"}
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              {validationResults.overall 
-                ? "Svi provjeri su prošli uspješno" 
+              {validationResults.overall
+                ? "Svi provjeri su prošli uspješno"
                 : "Jedan ili više provjera nije prošao uspješno"
               }
             </p>
           </div>
-          
+
           {/* Quick status indicators */}
           <div className="grid grid-cols-2 gap-2 pt-4 border-t">
             <div className="flex items-center justify-between">
@@ -636,7 +635,7 @@ export default function PaymentForm() {
   // Handler for barcode decoding - properly typed
   const handleBarcodeDecoded = (decodedData: Partial<PaymentFormData>) => {
     console.log('Decoded barcode data:', decodedData); // For debugging
-    
+
     // Update the form with decoded data
     form.reset({
       ...form.getValues(), // Keep any existing values
@@ -645,7 +644,7 @@ export default function PaymentForm() {
 
     // Clear existing barcode since we're loading new data
     setBarcodeUrl("");
-    
+
     // Update URL params to reflect the new form state
     const newParams = new URLSearchParams();
     Object.entries(decodedData).forEach(([key, value]) => {
@@ -676,6 +675,11 @@ export default function PaymentForm() {
     form.setValue("receiverPostcode", data.receiverPostcode || "")
     form.setValue("receiverCity", data.receiverCity || "")
     form.setValue("iban", data.iban || "HR")
+  }
+
+  // Handler for IBAN Calculator - this was missing!
+  const handleIBANSelect = (iban: string) => {
+    form.setValue("iban", iban)
   }
 
   async function onSubmit(values: PaymentFormData) {
@@ -982,8 +986,7 @@ export default function PaymentForm() {
                       )}
                     />
                   </div>
-                  
-                  {/* Use the corrected PlaceLookup component */}
+
                   <PlaceLookup section="sender" form={form} />
                 </div>
 
@@ -1022,7 +1025,7 @@ export default function PaymentForm() {
                       )}
                     />
                   </div>
-                  
+
                   {/* Use the corrected PlaceLookup component */}
                   <PlaceLookup section="receiver" form={form} />
                 </div>
@@ -1030,6 +1033,11 @@ export default function PaymentForm() {
                 {/* Payment Information Section */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">Podaci o plaćanju</h3>
+
+                  <div className="mb-8">
+                    <IBANCalculator onIBANSelect={handleIBANSelect} />
+                  </div>
+
                   <FormField
                     control={form.control}
                     name="iban"
@@ -1069,30 +1077,63 @@ export default function PaymentForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Model</FormLabel>
-                          <FormControl>
-                            <Input placeholder="npr. 00" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={2} {...field} />
-                          </FormControl>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="00">HR00</SelectItem>
+                              <SelectItem value="01">HR01</SelectItem>
+                              <SelectItem value="02">HR02</SelectItem>
+                              <SelectItem value="03">HR03</SelectItem>
+                              <SelectItem value="04">HR04</SelectItem>
+                              <SelectItem value="05">HR05</SelectItem>
+                              <SelectItem value="06">HR06</SelectItem>
+                              <SelectItem value="07">HR07</SelectItem>
+                              <SelectItem value="08">HR08</SelectItem>
+                              <SelectItem value="09">HR09</SelectItem>
+                              <SelectItem value="10">HR10</SelectItem>
+                              <SelectItem value="11">HR11</SelectItem>
+                              <SelectItem value="12">HR12</SelectItem>
+                              <SelectItem value="13">HR13</SelectItem>
+                              <SelectItem value="14">HR14</SelectItem>
+                              <SelectItem value="15">HR15</SelectItem>
+                              <SelectItem value="16">HR16</SelectItem>
+                              <SelectItem value="17">HR17</SelectItem>
+                              <SelectItem value="18">HR18</SelectItem>
+                              <SelectItem value="19">HR19</SelectItem>
+                              <SelectItem value="23">HR23</SelectItem>
+                              <SelectItem value="24">HR24</SelectItem>
+                              <SelectItem value="26">HR26</SelectItem>
+                              <SelectItem value="27">HR27</SelectItem>
+                              <SelectItem value="28">HR28</SelectItem>
+                              <SelectItem value="29">HR29</SelectItem>
+                              <SelectItem value="30">HR30</SelectItem>
+                              <SelectItem value="31">HR31</SelectItem>
+                              <SelectItem value="33">HR33</SelectItem>
+                              <SelectItem value="34">HR34</SelectItem>
+                              <SelectItem value="35">HR35</SelectItem>
+                              <SelectItem value="40">HR40</SelectItem>
+                              <SelectItem value="41">HR41</SelectItem>
+                              <SelectItem value="42">HR42</SelectItem>
+                              <SelectItem value="43">HR43</SelectItem>
+                              <SelectItem value="55">HR55</SelectItem>
+                              <SelectItem value="62">HR62</SelectItem>
+                              <SelectItem value="63">HR63</SelectItem>
+                              <SelectItem value="64">HR64</SelectItem>
+                              <SelectItem value="65">HR65</SelectItem>
+                              <SelectItem value="67">HR67</SelectItem>
+                              <SelectItem value="68">HR68</SelectItem>
+                              <SelectItem value="69">HR69</SelectItem>
+                              <SelectItem value="99">HR99</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="reference"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>
-                            Poziv na broj <span className="text-sm text-muted-foreground">max 22</span>
-                          </FormLabel>
-                          <FormControl>
-                            <Input placeholder="npr. 123-456-789" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={22} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="purpose"
@@ -1113,6 +1154,23 @@ export default function PaymentForm() {
                               ))}
                             </SelectContent>
                           </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="reference"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            Poziv na broj <span className="text-sm text-muted-foreground">max 22</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input placeholder="npr. 123-456-789" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={22} {...field} />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1229,6 +1287,11 @@ export default function PaymentForm() {
               <BarcodeDecoder onDataDecoded={handleBarcodeDecoded} />
             </div>
 
+            {/* IBAN CALCULATOR for mobile - This was missing! */}
+            <div className="mb-8">
+              <IBANCalculator onIBANSelect={handleIBANSelect} />
+            </div>
+
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 {/* Mobile form content - same as desktop but without sidebars */}
@@ -1261,7 +1324,7 @@ export default function PaymentForm() {
                         </FormItem>
                       )}
                     />
-                    
+
                     {/* Corrected PlaceLookup for mobile */}
                     <PlaceLookup section="sender" form={form} />
                   </div>
@@ -1296,7 +1359,7 @@ export default function PaymentForm() {
                         </FormItem>
                       )}
                     />
-                    
+
                     {/* Corrected PlaceLookup for mobile */}
                     <PlaceLookup section="receiver" form={form} />
                   </div>
@@ -1323,7 +1386,7 @@ export default function PaymentForm() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="amount"
@@ -1337,7 +1400,7 @@ export default function PaymentForm() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -1345,9 +1408,59 @@ export default function PaymentForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Model</FormLabel>
-                          <FormControl>
-                            <Input placeholder="npr. 00" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={2} {...field} />
-                          </FormControl>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow">
+                                <SelectValue placeholder="Odaberite model" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="00">HR00</SelectItem>
+                              <SelectItem value="01">HR01</SelectItem>
+                              <SelectItem value="02">HR02</SelectItem>
+                              <SelectItem value="03">HR03</SelectItem>
+                              <SelectItem value="04">HR04</SelectItem>
+                              <SelectItem value="05">HR05</SelectItem>
+                              <SelectItem value="06">HR06</SelectItem>
+                              <SelectItem value="07">HR07</SelectItem>
+                              <SelectItem value="08">HR08</SelectItem>
+                              <SelectItem value="09">HR09</SelectItem>
+                              <SelectItem value="10">HR10</SelectItem>
+                              <SelectItem value="11">HR11</SelectItem>
+                              <SelectItem value="12">HR12</SelectItem>
+                              <SelectItem value="13">HR13</SelectItem>
+                              <SelectItem value="14">HR14</SelectItem>
+                              <SelectItem value="15">HR15</SelectItem>
+                              <SelectItem value="16">HR16</SelectItem>
+                              <SelectItem value="17">HR17</SelectItem>
+                              <SelectItem value="18">HR18</SelectItem>
+                              <SelectItem value="19">HR19</SelectItem>
+                              <SelectItem value="23">HR23</SelectItem>
+                              <SelectItem value="24">HR24</SelectItem>
+                              <SelectItem value="26">HR26</SelectItem>
+                              <SelectItem value="27">HR27</SelectItem>
+                              <SelectItem value="28">HR28</SelectItem>
+                              <SelectItem value="29">HR29</SelectItem>
+                              <SelectItem value="30">HR30</SelectItem>
+                              <SelectItem value="31">HR31</SelectItem>
+                              <SelectItem value="33">HR33</SelectItem>
+                              <SelectItem value="34">HR34</SelectItem>
+                              <SelectItem value="35">HR35</SelectItem>
+                              <SelectItem value="40">HR40</SelectItem>
+                              <SelectItem value="41">HR41</SelectItem>
+                              <SelectItem value="42">HR42</SelectItem>
+                              <SelectItem value="43">HR43</SelectItem>
+                              <SelectItem value="55">HR55</SelectItem>
+                              <SelectItem value="62">HR62</SelectItem>
+                              <SelectItem value="63">HR63</SelectItem>
+                              <SelectItem value="64">HR64</SelectItem>
+                              <SelectItem value="65">HR65</SelectItem>
+                              <SelectItem value="67">HR67</SelectItem>
+                              <SelectItem value="68">HR68</SelectItem>
+                              <SelectItem value="69">HR69</SelectItem>
+                              <SelectItem value="99">HR99</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1366,7 +1479,7 @@ export default function PaymentForm() {
                       )}
                     />
                   </div>
-                  
+
                   <FormField
                     control={form.control}
                     name="purpose"
@@ -1391,7 +1504,7 @@ export default function PaymentForm() {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="description"
@@ -1457,7 +1570,7 @@ export default function PaymentForm() {
             )}
 
             <FormLinkComponent watch={form.watch} />
-            
+
             {/* Mobile validation components */}
             <div className="mt-8 space-y-4">
               <IBANStructureDisplay iban={form.watch("iban")} />
