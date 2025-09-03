@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { QrCode, CreditCard, Key, Home } from "lucide-react"
+import { QrCode, CreditCard, Key, Home, Shield } from "lucide-react"
 
 const navigationItems = [
   {
@@ -24,6 +24,12 @@ const navigationItems = [
     label: "BIN Provjera",
     icon: CreditCard,
     description: "Validacija Kartica"
+  },
+  {
+    href: "/oib",
+    label: "OIB",
+    icon: Shield,
+    description: "OIB Provjera"
   },
   {
     href: "/kdf",
