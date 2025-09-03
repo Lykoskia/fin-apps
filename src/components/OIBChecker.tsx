@@ -1,11 +1,11 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, XCircle, AlertCircle, Eye, EyeOff, ArrowRight, Lightbulb, Terminal, Calculator, Shield } from "lucide-react"
+import { CheckCircle, XCircle, AlertCircle, Eye, EyeOff, Lightbulb, Terminal, Calculator, Shield } from "lucide-react"
 import { LuTestTube, LuRotateCcw } from "react-icons/lu"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -25,7 +25,7 @@ interface OIBValidationResult {
   summary: string
 }
 
-const StepDisplay = ({ step, index }: { step: ValidationStep; index: number }) => (
+const StepDisplay = ({ step }: { step: ValidationStep; index: number }) => (
   <div className={cn(
     "p-3 rounded-lg border-l-4 space-y-2 transition-all duration-200",
     step.type === 'success' && "border-l-green-500 bg-green-500/5 dark:bg-green-500/10",
