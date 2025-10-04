@@ -1287,11 +1287,6 @@ export default function PaymentForm() {
               <BarcodeDecoder onDataDecoded={handleBarcodeDecoded} />
             </div>
 
-            {/* IBAN CALCULATOR for mobile - This was missing! */}
-            <div className="mb-8">
-              <IBANCalculator onIBANSelect={handleIBANSelect} />
-            </div>
-
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 {/* Mobile form content - same as desktop but without sidebars */}
@@ -1367,6 +1362,12 @@ export default function PaymentForm() {
 
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">Podaci o plaćanju</h3>
+
+                  {/* IBAN CALCULATOR for mobile */}
+                  <div className="mb-8">
+                    <IBANCalculator onIBANSelect={handleIBANSelect} />
+                  </div>
+
                   <FormField
                     control={form.control}
                     name="iban"

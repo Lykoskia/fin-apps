@@ -1,3 +1,5 @@
+// types/crypto.d.ts
+
 declare module 'keccak' {
   function keccak256(data: Buffer | Uint8Array | string): Buffer;
   export { keccak256 };
@@ -21,3 +23,7 @@ declare module 'bs58check' {
   export { encode, decode };
   export default { encode, decode };
 }
+
+// Add these lines for the new dependencies
+declare module 'crypto-browserify';
+declare module 'ripemd160';
