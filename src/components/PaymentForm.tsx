@@ -574,73 +574,118 @@ const ReferenceNumberInput: React.FC<{
   onBlur: () => void;
   model: string;
 }> = ({ value, onChange, onBlur, model }) => {
-  const [error, setError] = useState<string | null>(null);
-  
+  const [internalError, setInternalError] = useState<string | null>(null); // Renamed from 'error' to avoid confusion with form errors
+
   // Clear reference when model is 99
   useEffect(() => {
     if (model === "99" && value) {
       onChange("");
     }
   }, [model, onChange, value]);
-  
-  const validateReference = (refValue: string) => {
+
+  // Client-side validation function - provides immediate feedback
+  const validateReferenceClient = (refValue: string): boolean => {
     if (!refValue || refValue.trim() === "") {
-      setError(null);
+      setInternalError(null);
       return true;
     }
-    
+
     const trimmedValue = refValue.trim();
-    
-    // Check if it contains only digits and hyphens
-    if (!/^[0-9-]+$/.test(trimmedValue)) {
-      setError("Poziv na broj može sadržavati samo znamenke i crte.");
+
+    // Cannot start with a hyphen
+    if (trimmedValue.startsWith("-")) {
+      setInternalError("Poziv na broj ne može početi crticom.");
       return false;
     }
-    
-    // Can't end with a hyphen (but allow during typing)
-    if (trimmedValue.endsWith("-")) {
-      setError(null); // Don't show error during typing
-      return true;
+
+    // Cannot end with a hyphen (allow during typing, check on blur)
+    // We'll let `onBlur` handle the final check for this.
+    // if (trimmedValue.endsWith("-")) {
+    //   setInternalError("Poziv na broj ne može završiti crticom.");
+    //   return false;
+    // }
+
+    // Check if it contains only digits and hyphens, and no consecutive hyphens
+    if (!/^[0-9-]+$/.test(trimmedValue) || trimmedValue.includes("--")) {
+      setInternalError("Poziv na broj može sadržavati samo znamenke i ne smije imati dvije uzastopne crte.");
+      return false;
     }
-    
-    // Split by hyphens and check each segment
+
     const segments = trimmedValue.split("-");
-    
+
     // Maximum 4 segments (3 hyphens)
     if (segments.length > 4) {
-      setError("Maksimalno 3 crte su dozvoljene.");
+      setInternalError("Dozvoljeno je najviše 3 crte.");
       return false;
     }
-    
+
     // Each segment must have at most 11 digits
     for (const segment of segments) {
       if (segment.length > 11) {
-        setError("Svaki segment može imati najviše 11 znamenki.");
+        setInternalError("Svaki segment može imati najviše 11 znamenki.");
         return false;
       }
     }
-    
-    setError(null);
+
+    setInternalError(null);
     return true;
   };
-  
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    // Allow only digits and hyphens
-    const sanitizedValue = newValue.replace(/[^0-9-]/g, "");
-    onChange(sanitizedValue);
-    validateReference(sanitizedValue);
-  };
-  
-  const handleBlur = () => {
-    // Remove trailing hyphen if present
-    if (value && value.endsWith("-")) {
-      onChange(value.slice(0, -1));
+    const oldValue = value; // Keep track of the old value for comparison
+
+    // Sanitize: allow only digits and hyphens, and prevent consecutive hyphens
+    // This is the most critical part for immediate prevention
+    let sanitizedValue = "";
+    for (let i = 0; i < newValue.length; i++) {
+      const char = newValue[i];
+      if (char === '-') {
+        // Prevent starting with a hyphen
+        if (i === 0) {
+          continue; // Skip the hyphen if it's the first character
+        }
+        // Prevent consecutive hyphens
+        if (sanitizedValue.length > 0 && sanitizedValue[sanitizedValue.length - 1] === '-') {
+          continue; // Skip the hyphen if the previous char was also a hyphen
+        }
+      }
+      // Allow digits
+      if (/[0-9]/.test(char)) {
+        sanitizedValue += char;
+      } else if (char === '-') {
+        // Allow hyphen if it passed the previous checks
+        sanitizedValue += char;
+      }
     }
-    validateReference(value);
-    onBlur();
+    
+    // Enforce max length of 22 including hyphens
+    sanitizedValue = sanitizedValue.substring(0, 22);
+
+    onChange(sanitizedValue);
+    validateReferenceClient(sanitizedValue); // Validate sanitized value
   };
-  
+
+  const handleBlur = () => {
+    let finalValue = value.trim();
+
+    // Ensure it doesn't end with a hyphen on blur
+    if (finalValue.endsWith("-")) {
+      finalValue = finalValue.slice(0, -1);
+      onChange(finalValue); // Update form state with trimmed value
+    }
+
+    // Re-validate the final value to catch the "cannot end with hyphen" rule
+    if (finalValue.endsWith("-")) { // This should ideally not happen if slice(-1) worked, but as a safeguard
+      setInternalError("Poziv na broj ne može završiti crticom.");
+    } else {
+      validateReferenceClient(finalValue); // Final validation for consistency
+    }
+    
+    onBlur(); // Call react-hook-form's onBlur
+  };
+
+
   return (
     <div>
       <Input
@@ -649,12 +694,12 @@ const ReferenceNumberInput: React.FC<{
         onBlur={handleBlur}
         placeholder="npr. 123-456-789"
         className={`bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow ${
-          error ? "border-red-500 focus:border-red-500" : ""
+          internalError ? "border-red-500 focus:border-red-500" : ""
         }`}
-        maxLength={22}
+        maxLength={22} // MaxLength is a good client-side hint, but our handleChange enforces it better
       />
-      {error && (
-        <p className="text-sm text-red-500 mt-1">{error}</p>
+      {internalError && (
+        <p className="text-sm text-red-500 mt-1">{internalError}</p>
       )}
     </div>
   );

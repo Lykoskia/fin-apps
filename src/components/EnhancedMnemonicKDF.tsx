@@ -6,7 +6,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -115,6 +114,11 @@ const SolanaLogo = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// Define a proper type for the window object with Buffer
+interface WindowWithBuffer extends Window {
+  Buffer?: typeof Buffer;
+}
+
 // Crypto libraries interface
 interface BIP39Library {
   mnemonicToEntropy: (mnemonic: string) => string;
@@ -143,29 +147,56 @@ interface HDKeyInstance {
   };
   [key: string]: unknown;
 }
-interface KeccakFunction {
-  (algorithm: string): { update: (data: Buffer) => { digest: () => Buffer } };
+
+// Define proper types for keccak256
+interface Keccak256Hash {
+  update: (data: Buffer) => { digest: () => Buffer };
+}
+
+interface Keccak256Module {
+  (algorithm: string): Keccak256Hash;
   (data: Buffer): Buffer;
   keccak256?: (data: Buffer) => Buffer;
-  [key: string]: unknown;
+  default?: Keccak256Module;
 }
+
 interface BS58CheckFunction {
   encode: (data: Buffer) => string;
   decode: (data: string) => Buffer;
   [key: string]: unknown;
 }
 
+// Define a proper type for the ecc library - TinySecp256k1Interface
+interface TinySecp256k1Interface {
+  isPoint: (p: Uint8Array) => boolean;
+  isPrivate: (d: Uint8Array) => boolean;
+  isXOnlyPoint: (p: Uint8Array) => boolean;
+  xOnlyPointAddTweak: (p: Uint8Array, tweak: Uint8Array) => { parity: 1 | 0; xOnlyPubkey: Uint8Array } | null;
+  pointFromScalar: (d: Uint8Array, compressed?: boolean) => Uint8Array | null;
+  pointCompress: (p: Uint8Array, compressed?: boolean) => Uint8Array | null;
+  pointMultiply: (a: Uint8Array, tweak: Uint8Array, compressed?: boolean) => Uint8Array | null;
+  pointAdd: (a: Uint8Array, b: Uint8Array, compressed?: boolean) => Uint8Array | null;
+  pointAddScalar: (p: Uint8Array, tweak: Uint8Array, compressed?: boolean) => Uint8Array | null;
+  privateAdd: (d: Uint8Array, tweak: Uint8Array) => Uint8Array | null;
+  privateSub: (d: Uint8Array, tweak: Uint8Array) => Uint8Array | null;
+  privateNegate: (d: Uint8Array) => Uint8Array;
+  sign: (h: Uint8Array, d: Uint8Array, e?: Uint8Array) => Uint8Array;
+  signSchnorr: (h: Uint8Array, d: Uint8Array, e?: Uint8Array) => Uint8Array;
+  verify: (h: Uint8Array, Q: Uint8Array, signature: Uint8Array, strict?: boolean) => boolean;
+  verifySchnorr: (h: Uint8Array, Q: Uint8Array, signature: Uint8Array) => boolean;
+}
+
 interface CryptoLibs {
   bip39: BIP39Library;
   hdkey: HDKeyLibrary;
-  keccak256: KeccakFunction;
+  keccak256: Keccak256Module;
   bs58check: BS58CheckFunction;
   Buffer: typeof Buffer;
   bip32: BIP32API;
   bitcoin: typeof bitcoin;
   ed25519: typeof ed25519;
   bs58: typeof bs58;
-  ecc: any; // tiny-secp256k1
+  ecc: TinySecp256k1Interface;
 }
 
 let cryptoLibs: CryptoLibs | null = null;
@@ -204,7 +235,8 @@ const initCrypto = async (): Promise<boolean> => {
     }
     try {
       const keccakModule = await import('keccak');
-      libs.keccak256 = (keccakModule.default || keccakModule) as KeccakFunction;
+      // Handle both default export and named export
+      libs.keccak256 = (keccakModule.default || keccakModule) as Keccak256Module;
     } catch {
       throw new Error('Cannot load keccak');
     }
@@ -216,7 +248,8 @@ const initCrypto = async (): Promise<boolean> => {
       throw new Error('Cannot load bs58check');
     }
     try {
-      libs.ecc = await import('@bitcoin-js/tiny-secp256k1-asmjs');
+      const eccModule = await import('@bitcoin-js/tiny-secp256k1-asmjs');
+      libs.ecc = eccModule as TinySecp256k1Interface;
       const bip32Factory = (await import('bip32')).default;
       libs.bip32 = bip32Factory(libs.ecc);
       libs.bitcoin = await import('bitcoinjs-lib');
@@ -234,8 +267,9 @@ const initCrypto = async (): Promise<boolean> => {
       throw new Error('Cannot load solana dependencies');
     }
 
+    // Fixed: Properly type the window object
     if (typeof window !== 'undefined') {
-      (window as any).Buffer = libs.Buffer!;
+      (window as WindowWithBuffer).Buffer = libs.Buffer!;
     }
     cryptoLibs = libs as CryptoLibs;
     return true;
@@ -528,6 +562,7 @@ const BlockchainCard = ({
   </Card>
 );
 
+// Fixed version of generateEthereumAddress
 const generateEthereumAddress = (publicKeyHex: string): string => {
   try {
     if (!cryptoLibs?.keccak256 || !cryptoLibs?.Buffer)
@@ -537,15 +572,18 @@ const generateEthereumAddress = (publicKeyHex: string): string => {
       publicKeyBuffer.length === 65
         ? publicKeyBuffer.slice(1)
         : publicKeyBuffer;
-    const hash = (cryptoLibs.keccak256 as any)('keccak256')
-      .update(keyToHash)
-      .digest();
+    
+    // Fixed: Properly use the keccak256 function without type assertions
+    const keccakHash = cryptoLibs.keccak256('keccak256');
+    const hash = keccakHash.update(keyToHash).digest();
+    
     return '0x' + hash.slice(-20).toString('hex');
   } catch (error) {
     return 'Generiranje adrese neuspješno: ' + (error as Error).message;
   }
 };
 
+// Fixed version of generateTronAddress
 const generateTronAddress = (publicKeyHex: string): string => {
   try {
     if (!cryptoLibs?.keccak256 || !cryptoLibs?.Buffer || !cryptoLibs?.bs58check)
@@ -555,9 +593,11 @@ const generateTronAddress = (publicKeyHex: string): string => {
       publicKeyBuffer.length === 65
         ? publicKeyBuffer.slice(1)
         : publicKeyBuffer;
-    const hash = (cryptoLibs.keccak256 as any)('keccak256')
-      .update(keyToHash)
-      .digest();
+    
+    // Fixed: Properly use the keccak256 function without type assertions
+    const keccakHash = cryptoLibs.keccak256('keccak256');
+    const hash = keccakHash.update(keyToHash).digest();
+    
     const addressHex = '41' + hash.slice(-20).toString('hex');
     return cryptoLibs.bs58check.encode(
       cryptoLibs.Buffer.from(addressHex, 'hex'),
@@ -602,7 +642,20 @@ const generateBitcoinTaprootAddress = (publicKeyHex: string): string => {
     }
     const { bitcoin, Buffer } = cryptoLibs;
     const pubKeyBuffer = Buffer.from(publicKeyHex, 'hex');
-    const internalPubkey = pubKeyBuffer.slice(1);
+    
+    // For Taproot, we need the x-only public key (32 bytes, without the prefix)
+    let internalPubkey: Buffer;
+    if (pubKeyBuffer.length === 33) {
+      // Remove the first byte (prefix) for compressed keys
+      internalPubkey = pubKeyBuffer.slice(1);
+    } else if (pubKeyBuffer.length === 32) {
+      // Already x-only
+      internalPubkey = pubKeyBuffer;
+    } else {
+      // For uncompressed or other formats, take first 32 bytes after any prefix
+      internalPubkey = pubKeyBuffer.slice(0, 32);
+    }
+    
     const { address } = bitcoin.payments.p2tr({ internalPubkey });
     return address || 'Generiranje adrese neuspješno';
   } catch (error) {
@@ -688,9 +741,16 @@ const deriveKeysFromMnemonic = (mnemonic: string): DerivedKeys => {
   let taprootPrivateKey = taprootChild.privateKey;
   let taprootPublicKey = taprootChild.publicKey;
 
+  // Convert Buffer to Uint8Array for ecc operations
   if (taprootPublicKey[0] === 3 && taprootPrivateKey) {
-    taprootPrivateKey = ecc.privateNegate(taprootPrivateKey);
-    taprootPublicKey = Buffer.from(ecc.pointFromScalar(taprootPrivateKey, true));
+    const privKeyUint8 = Uint8Array.from(taprootPrivateKey);
+    const negatedPrivKey = ecc.privateNegate(privKeyUint8);
+    taprootPrivateKey = Buffer.from(negatedPrivKey);
+    
+    const newPubKey = ecc.pointFromScalar(negatedPrivKey, true);
+    if (newPubKey) {
+      taprootPublicKey = Buffer.from(newPubKey);
+    }
   }
   const taprootPrivateKeyHex = taprootPrivateKey
     ? Buffer.from(taprootPrivateKey).toString('hex')
@@ -699,7 +759,6 @@ const deriveKeysFromMnemonic = (mnemonic: string): DerivedKeys => {
   const taprootAddress = generateBitcoinTaprootAddress(taprootPublicKeyHex);
 
   // Solana Derivation (SLIP-0010)
-  // --- FIX --- Use the correct derivation path for main Solana accounts
   const solanaPath = "m/44'/501'/0'";
   const solanaSeed = ed25519.derivePath(solanaPath, seed.toString('hex')).key;
   const solanaKeyPair = Keypair.fromSeed(solanaSeed);
@@ -974,7 +1033,7 @@ export default function EnhancedMnemonicKDF() {
           </CardTitle>
           <p className="text-muted-foreground">
             Unesite svoju 12-riječi mnemoničku frazu za izvođenje kriptografskih
-            ključeva za Ethereum, Tron, Bitcoin i BNB
+            ključeva za Ethereum, Tron, Bitcoin i Solana
           </p>
         </CardHeader>
       </Card>

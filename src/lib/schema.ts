@@ -1,5 +1,6 @@
-import { z } from "zod"
-import { validateIBAN, modelPattern, purposeValues } from "./croatianPaymentData"
+// src/lib/schema.ts
+import { z } from "zod";
+import { validateIBAN, modelPattern, purposeValues } from "./croatianPaymentData";
 
 export const paymentFormSchema = z.object({
   // Sender fields - all truly optional
@@ -41,26 +42,67 @@ export const paymentFormSchema = z.object({
     .default("0,00"),
   model: z.string().regex(modelPattern, "Model mora biti u ispravnom formatu").length(2, "Model mora imati 2 znamenke").default("00"),
   reference: z.string().max(22, "Poziv na broj mora biti 22 znaka ili manje")
-    .refine(
-      (value) => {
-        if (!value || value.trim() === "") return true // Allow empty values
-        const trimmedValue = value.trim()
-        // Check if it contains only digits and hyphens
-        if (!/^[0-9-]+$/.test(trimmedValue)) return false
-        // Can't start or end with a hyphen
-        if (trimmedValue.startsWith("-") || trimmedValue.endsWith("-")) return false
-        // Split by hyphens and check each segment
-        const segments = trimmedValue.split("-")
-        // Maximum 4 segments (3 hyphens)
-        if (segments.length > 4) return false
-        // Each segment must have at most 11 digits
-        for (const segment of segments) {
-          if (segment.length > 11) return false
+    .superRefine((value, ctx) => {
+      if (!value || value.trim() === "") return; // Allow empty values
+
+      const trimmedValue = value.trim();
+
+      // 1. Check for invalid characters (non-digits or hyphens)
+      if (!/^[0-9-]+$/.test(trimmedValue)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Poziv na broj može sadržavati samo znamenke i crte.",
+        });
+        return;
+      }
+
+      // 2. Cannot start or end with a hyphen
+      if (trimmedValue.startsWith("-")) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Poziv na broj ne može početi crticom.",
+        });
+        return;
+      }
+      if (trimmedValue.endsWith("-")) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Poziv na broj ne može završiti crticom.",
+        });
+        return;
+      }
+
+      // 3. Cannot have consecutive hyphens
+      if (trimmedValue.includes("--")) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Poziv na broj ne može sadržavati dvije uzastopne crte.",
+        });
+        return;
+      }
+
+      const segments = trimmedValue.split("-");
+
+      // 4. Maximum 4 segments (3 hyphens)
+      if (segments.length > 4) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Dozvoljeno je najviše 3 crte.",
+        });
+        return;
+      }
+
+      // 5. Each segment must have at most 11 digits
+      for (const segment of segments) {
+        if (segment.length > 11) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Svaki segment može imati najviše 11 znamenki.",
+          });
+          return;
         }
-        return true
-      },
-      "Poziv na broj mora sadržavati samo znamenke i crte (max 3), s najviše 11 znamenki između crta."
-    )
+      }
+    })
     .optional(),
   purpose: z.enum(purposeValues, {
     errorMap: () => ({ message: "Odaberite valjanu namjenu" }),
