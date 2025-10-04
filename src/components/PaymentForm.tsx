@@ -567,6 +567,99 @@ const ValidationSummaryCard: React.FC<{ iban: string }> = ({ iban }) => {
   )
 }
 
+// Custom Reference Number Input Component
+const ReferenceNumberInput: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+  onBlur: () => void;
+  model: string;
+}> = ({ value, onChange, onBlur, model }) => {
+  const [error, setError] = useState<string | null>(null);
+  
+  // Clear reference when model is 99
+  useEffect(() => {
+    if (model === "99" && value) {
+      onChange("");
+    }
+  }, [model, onChange, value]);
+  
+  const validateReference = (refValue: string) => {
+    if (!refValue || refValue.trim() === "") {
+      setError(null);
+      return true;
+    }
+    
+    const trimmedValue = refValue.trim();
+    
+    // Check if it contains only digits and hyphens
+    if (!/^[0-9-]+$/.test(trimmedValue)) {
+      setError("Poziv na broj može sadržavati samo znamenke i crte.");
+      return false;
+    }
+    
+    // Can't end with a hyphen (but allow during typing)
+    if (trimmedValue.endsWith("-")) {
+      setError(null); // Don't show error during typing
+      return true;
+    }
+    
+    // Split by hyphens and check each segment
+    const segments = trimmedValue.split("-");
+    
+    // Maximum 4 segments (3 hyphens)
+    if (segments.length > 4) {
+      setError("Maksimalno 3 crte su dozvoljene.");
+      return false;
+    }
+    
+    // Each segment must have at most 11 digits
+    for (const segment of segments) {
+      if (segment.length > 11) {
+        setError("Svaki segment može imati najviše 11 znamenki.");
+        return false;
+      }
+    }
+    
+    setError(null);
+    return true;
+  };
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    // Allow only digits and hyphens
+    const sanitizedValue = newValue.replace(/[^0-9-]/g, "");
+    onChange(sanitizedValue);
+    validateReference(sanitizedValue);
+  };
+  
+  const handleBlur = () => {
+    // Remove trailing hyphen if present
+    if (value && value.endsWith("-")) {
+      onChange(value.slice(0, -1));
+    }
+    validateReference(value);
+    onBlur();
+  };
+  
+  return (
+    <div>
+      <Input
+        value={value}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        placeholder="npr. 123-456-789"
+        className={`bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow ${
+          error ? "border-red-500 focus:border-red-500" : ""
+        }`}
+        maxLength={22}
+      />
+      {error && (
+        <p className="text-sm text-red-500 mt-1">{error}</p>
+      )}
+    </div>
+  );
+};
+
 const formSchema = paymentFormSchema
 
 export default function PaymentForm() {
@@ -595,6 +688,16 @@ export default function PaymentForm() {
       description: "",
     },
   })
+
+  // Clear reference when model is 99
+  useEffect(() => {
+    const model = form.watch("model");
+    const reference = form.watch("reference");
+    
+    if (model === "99" && reference) {
+      form.setValue("reference", "");
+    }
+  }, [form.watch("model"), form]);
 
   useEffect(() => {
     const formData: { [key: string]: string } = {}
@@ -677,7 +780,7 @@ export default function PaymentForm() {
     form.setValue("iban", data.iban || "HR")
   }
 
-  // Handler for IBAN Calculator - this was missing!
+  // Handler for IBAN Calculator
   const handleIBANSelect = (iban: string) => {
     form.setValue("iban", iban)
   }
@@ -1034,7 +1137,7 @@ export default function PaymentForm() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">Podaci o plaćanju</h3>
 
-                  <div className="mb-8">
+                  <div className="mb-4">
                     <IBANCalculator onIBANSelect={handleIBANSelect} />
                   </div>
 
@@ -1169,7 +1272,12 @@ export default function PaymentForm() {
                             Poziv na broj <span className="text-sm text-muted-foreground">max 22</span>
                           </FormLabel>
                           <FormControl>
-                            <Input placeholder="npr. 123-456-789" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={22} {...field} />
+                            <ReferenceNumberInput
+                              value={field.value || ""}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              model={form.watch("model")}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1362,9 +1470,9 @@ export default function PaymentForm() {
 
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">Podaci o plaćanju</h3>
-
-                  {/* IBAN CALCULATOR for mobile */}
-                  <div className="mb-8">
+                  
+                  {/* IBAN Calculator for mobile */}
+                  <div className="mb-4">
                     <IBANCalculator onIBANSelect={handleIBANSelect} />
                   </div>
 
@@ -1473,7 +1581,12 @@ export default function PaymentForm() {
                         <FormItem>
                           <FormLabel>Poziv na broj <span className="text-sm text-muted-foreground">max 22</span></FormLabel>
                           <FormControl>
-                            <Input placeholder="npr. 123-456-789" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={22} {...field} />
+                            <ReferenceNumberInput
+                              value={field.value || ""}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              model={form.watch("model")}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

@@ -39,24 +39,27 @@ export const paymentFormSchema = z.object({
     }, "Iznos mora biti između 0,01 i 999.999,99")
     .optional()
     .default("0,00"),
-  model: z.string().regex(modelPattern, "Model mora biti u ispravnom formatu").length(2, "Model mora imati 2 znamenke").optional(),
+  model: z.string().regex(modelPattern, "Model mora biti u ispravnom formatu").length(2, "Model mora imati 2 znamenke").default("00"),
   reference: z.string().max(22, "Poziv na broj mora biti 22 znaka ili manje")
     .refine(
       (value) => {
-        if (value.length === 0) return true
-
+        if (!value || value.trim() === "") return true // Allow empty values
         const trimmedValue = value.trim()
-        const hyphenPositions = [...trimmedValue.matchAll(/-/g)].map((match) => match.index)
-        const consecutiveDigits = trimmedValue.match(/\d{13,}/g)
-
+        // Check if it contains only digits and hyphens
         if (!/^[0-9-]+$/.test(trimmedValue)) return false
+        // Can't start or end with a hyphen
         if (trimmedValue.startsWith("-") || trimmedValue.endsWith("-")) return false
-        if (hyphenPositions.some((pos, index) => index > 0 && pos === hyphenPositions[index - 1] + 1)) return false
-        if (consecutiveDigits && consecutiveDigits.some((digits) => digits.length > 12)) return false
-
+        // Split by hyphens and check each segment
+        const segments = trimmedValue.split("-")
+        // Maximum 4 segments (3 hyphens)
+        if (segments.length > 4) return false
+        // Each segment must have at most 11 digits
+        for (const segment of segments) {
+          if (segment.length > 11) return false
+        }
         return true
       },
-      "Poziv na broj primatelja nije validan. Provjerite format i duljinu segmenata.",
+      "Poziv na broj mora sadržavati samo znamenke i crte (max 3), s najviše 11 znamenki između crta."
     )
     .optional(),
   purpose: z.enum(purposeValues, {

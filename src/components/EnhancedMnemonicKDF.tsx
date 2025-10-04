@@ -1,5 +1,3 @@
-// EnhancedMnemonicKDF.tsx
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -32,7 +30,6 @@ import LoadingSpinner from './LoadingSpinner';
 
 import * as bitcoin from 'bitcoinjs-lib';
 import { BIP32API } from 'bip32';
-// Import Solana libraries
 import { Keypair } from '@solana/web3.js';
 import * as ed25519 from 'ed25519-hd-key';
 import bs58 from 'bs58';
@@ -219,14 +216,14 @@ const initCrypto = async (): Promise<boolean> => {
       throw new Error('Cannot load bs58check');
     }
     try {
-      libs.ecc = await import('tiny-secp256k1');
+      libs.ecc = await import('@bitcoin-js/tiny-secp256k1-asmjs');
       const bip32Factory = (await import('bip32')).default;
       libs.bip32 = bip32Factory(libs.ecc);
       libs.bitcoin = await import('bitcoinjs-lib');
       libs.bitcoin.initEccLib(libs.ecc);
     } catch (e) {
       throw new Error(
-        'Cannot load bip32, bitcoinjs-lib, or tiny-secp256k1: ' +
+        'Cannot load bip32, bitcoinjs-lib, or @bitcoin-js/tiny-secp256k1-asmjs: ' +
           (e as Error).message,
       );
     }
