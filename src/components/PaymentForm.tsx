@@ -633,7 +633,6 @@ const ReferenceNumberInput: React.FC<{
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    const oldValue = value; // Keep track of the old value for comparison
 
     // Sanitize: allow only digits and hyphens, and prevent consecutive hyphens
     // This is the most critical part for immediate prevention
