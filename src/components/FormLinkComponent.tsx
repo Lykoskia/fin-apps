@@ -1,3 +1,6 @@
+// components/FormLinkComponent.tsx
+"use client"
+
 import React, { useState, useEffect, useCallback } from 'react';
 import QRCode from 'qrcode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,9 +14,10 @@ import { debounce } from 'lodash';
 
 interface FormLinkComponentProps {
   watch: UseFormWatch<PaymentFormData>;
+  onFormUrlChange: (url: string) => void; // This prop exists
 }
 
-export default function FormLinkComponent({ watch }: FormLinkComponentProps) {
+export default function FormLinkComponent({ watch, onFormUrlChange }: FormLinkComponentProps) { // Destructure onFormUrlChange here
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [formUrl, setFormUrl] = useState<string>('');
 
@@ -54,6 +58,11 @@ export default function FormLinkComponent({ watch }: FormLinkComponentProps) {
     // Update the URL immediately
     setFormUrl(fullUrl);
 
+    // **********************************************
+    // CALL THE onFormUrlChange PROP HERE!
+    onFormUrlChange(fullUrl);
+    // **********************************************
+
     // Generate QR code with debounce
     generateQRCode(fullUrl);
 
@@ -61,7 +70,7 @@ export default function FormLinkComponent({ watch }: FormLinkComponentProps) {
     return () => {
       generateQRCode.cancel();
     };
-  }, [formData, generateQRCode]);
+  }, [formData, generateQRCode, onFormUrlChange]); // Add onFormUrlChange to dependency array
 
   return (
     <Card className="mt-8">

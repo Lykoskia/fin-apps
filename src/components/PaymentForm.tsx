@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { submitPaymentForm } from "@/lib/actions"
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { LuPlay, LuDownload, LuShare2, LuLoader, LuTestTube, LuRotateCcw } from "react-icons/lu"
+import { LuPlay, LuDownload, LuShare2, LuLoader, LuTestTube, LuRotateCcw, LuFileText } from "react-icons/lu"
 import { useSearchParamsState } from "@/hooks/useSearchParamsState"
 import type { SubmitPaymentFormResult } from "@/lib/types"
 import Image from "next/image"
@@ -22,11 +22,14 @@ import { IBANCalculator } from "./IBANCalculator"
 import LoadingSpinner from "./LoadingSpinner"
 import { useToast } from "@/hooks/use-toast"
 import { EnhancedDataManager } from "./EnhancedDataManager"
-import FormLinkComponent from "./FormLinkComponent"
+import FormLinkComponent from "./FormLinkComponent" // Keep this import
 import BarcodeDecoder from "./BarcodeDecoder"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, XCircle, AlertCircle, Eye, EyeOff, ArrowRight, Lightbulb, Terminal } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+// Import the PDF generation utility
+import { generatePaymentPdf } from "@/lib/generate-payment-pdf"
 
 interface ValidationStep {
   description: string
@@ -53,7 +56,7 @@ type EnhancedDataManagerCallback = (data: Partial<PaymentFormData>) => void;
 const IBANStructureDisplay: React.FC<{ iban: string }> = ({ iban }) => {
   const [showDetails, setShowDetails] = useState(true);
 
-  const analyzeIBAN = (ibanValue: string): { country: string; check: string; bank: string; account: string; parts: ValidationStep[] } => {
+  const analyzeIBAN = useCallback((ibanValue: string): { country: string; check: string; bank: string; account: string; parts: ValidationStep[] } => {
     const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
 
     const parts: ValidationStep[] = [];
@@ -101,7 +104,7 @@ const IBANStructureDisplay: React.FC<{ iban: string }> = ({ iban }) => {
       account: cleanIban.substring(11, 21),
       parts
     };
-  };
+  }, []);
 
   const { parts } = analyzeIBAN(iban);
 
@@ -156,7 +159,7 @@ const IBANStructureDisplay: React.FC<{ iban: string }> = ({ iban }) => {
 const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
   const [showDetails, setShowDetails] = useState(false);
 
-  const calculateControlDigits = (ibanValue: string): ValidationStep[] => {
+  const calculateControlDigits = useCallback((ibanValue: string): ValidationStep[] => {
     const steps: ValidationStep[] = [];
 
     if (!ibanValue || ibanValue.length < 15) {
@@ -219,7 +222,7 @@ const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
     }
 
     return steps;
-  };
+  }, []);
 
   const steps = calculateControlDigits(iban);
   const hasValidData = iban && iban.length >= 15;
@@ -286,7 +289,7 @@ const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
 };
 
 const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
-  const validateIBANDetailed = (ibanValue: string): ValidationResult => {
+  const validateIBANDetailed = useCallback((ibanValue: string): ValidationResult => {
     const steps: ValidationStep[] = [];
 
     if (!ibanValue) {
@@ -350,7 +353,7 @@ const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
 
     const overall = country && length && checkDigits && account;
     return { country, checkDigits, length, account, overall, steps };
-  };
+  }, []);
 
   const validationResults = validateIBANDetailed(iban);
 
@@ -398,7 +401,7 @@ const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
 };
 
 const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
-  const validateBankAccount = (ibanValue: string): ValidationResult => {
+  const validateBankAccount = useCallback((ibanValue: string): ValidationResult => {
     const steps: ValidationStep[] = [];
     let checkDigits = false, account = false;
 
@@ -432,7 +435,7 @@ const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
 
     const overall = checkDigits && account;
     return { country: false, checkDigits, length: false, account, overall, steps };
-  };
+  }, []);
 
   const validationResults = validateBankAccount(iban);
 
@@ -481,7 +484,7 @@ const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
 
 // Overall validation summary component
 const ValidationSummaryCard: React.FC<{ iban: string }> = ({ iban }) => {
-  const validateIBANDetailed = (ibanValue: string): ValidationResult => {
+  const validateIBANDetailed = useCallback((ibanValue: string): ValidationResult => {
     const steps: ValidationStep[] = [];
 
     if (!ibanValue) {
@@ -511,7 +514,7 @@ const ValidationSummaryCard: React.FC<{ iban: string }> = ({ iban }) => {
 
     const overall = country && length && checkDigits && account;
     return { country, checkDigits, length, account, overall, steps };
-  };
+  }, []);
 
   const validationResults = validateIBANDetailed(iban);
 
@@ -584,7 +587,7 @@ const ReferenceNumberInput: React.FC<{
   }, [model, onChange, value]);
 
   // Client-side validation function - provides immediate feedback
-  const validateReferenceClient = (refValue: string): boolean => {
+  const validateReferenceClient = useCallback((refValue: string): boolean => {
     if (!refValue || refValue.trim() === "") {
       setInternalError(null);
       return true;
@@ -597,13 +600,6 @@ const ReferenceNumberInput: React.FC<{
       setInternalError("Poziv na broj ne može početi crticom.");
       return false;
     }
-
-    // Cannot end with a hyphen (allow during typing, check on blur)
-    // We'll let `onBlur` handle the final check for this.
-    // if (trimmedValue.endsWith("-")) {
-    //   setInternalError("Poziv na broj ne može završiti crticom.");
-    //   return false;
-    // }
 
     // Check if it contains only digits and hyphens, and no consecutive hyphens
     if (!/^[0-9-]+$/.test(trimmedValue) || trimmedValue.includes("--")) {
@@ -629,7 +625,7 @@ const ReferenceNumberInput: React.FC<{
 
     setInternalError(null);
     return true;
-  };
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
@@ -657,7 +653,7 @@ const ReferenceNumberInput: React.FC<{
         sanitizedValue += char;
       }
     }
-    
+
     // Enforce max length of 22 including hyphens
     sanitizedValue = sanitizedValue.substring(0, 22);
 
@@ -680,7 +676,7 @@ const ReferenceNumberInput: React.FC<{
     } else {
       validateReferenceClient(finalValue); // Final validation for consistency
     }
-    
+
     onBlur(); // Call react-hook-form's onBlur
   };
 
@@ -692,9 +688,8 @@ const ReferenceNumberInput: React.FC<{
         onChange={handleChange}
         onBlur={handleBlur}
         placeholder="npr. 123-456-789"
-        className={`bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow ${
-          internalError ? "border-red-500 focus:border-red-500" : ""
-        }`}
+        className={`bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow ${internalError ? "border-red-500 focus:border-red-500" : ""
+          }`}
         maxLength={22} // MaxLength is a good client-side hint, but our handleChange enforces it better
       />
       {internalError && (
@@ -709,6 +704,8 @@ const formSchema = paymentFormSchema
 export default function PaymentForm() {
   const [barcodeUrl, setBarcodeUrl] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false)
+  const [currentFormUrl, setCurrentFormUrl] = useState<string>(''); // NEW: State for form URL
   const { searchParams, setSearchParams } = useSearchParamsState()
 
   const { toast } = useToast()
@@ -733,11 +730,16 @@ export default function PaymentForm() {
     },
   })
 
+  // NEW: Callback to receive the form URL from FormLinkComponent
+  const handleFormUrlChange = useCallback((url: string) => {
+    setCurrentFormUrl(url);
+  }, []);
+
   // Clear reference when model is 99
   useEffect(() => {
     const model = form.watch("model");
     const reference = form.watch("reference");
-    
+
     if (model === "99" && reference) {
       form.setValue("reference", "");
     }
@@ -777,10 +779,10 @@ export default function PaymentForm() {
         console.error('Error parsing saved sender data:', e);
       }
     }
-  }, []);
+  }, [form]); // Added form to dependency array
 
   // Handler for barcode decoding - properly typed
-  const handleBarcodeDecoded = (decodedData: Partial<PaymentFormData>) => {
+  const handleBarcodeDecoded = useCallback((decodedData: Partial<PaymentFormData>) => {
     console.log('Decoded barcode data:', decodedData); // For debugging
 
     // Update the form with decoded data
@@ -796,7 +798,7 @@ export default function PaymentForm() {
     const newParams = new URLSearchParams();
     Object.entries(decodedData).forEach(([key, value]) => {
       if (value && value !== "") {
-        newParams.set(key, value.toString());
+        newParams.set(key, String(value)); // Ensure value is string for URLSearchParams
       }
     });
     setSearchParams(newParams);
@@ -806,28 +808,28 @@ export default function PaymentForm() {
       title: "Barkod uspješno učitan",
       description: "Podaci su uneseni u obrazac. Možete ih sada mijenjati po potrebi.",
     });
-  };
+  }, [form, setSearchParams, toast]);
 
   // Properly typed handlers for EnhancedDataManager
-  const handleSenderDataLoad: EnhancedDataManagerCallback = (data) => {
+  const handleSenderDataLoad: EnhancedDataManagerCallback = useCallback((data) => {
     form.setValue("senderName", data.senderName || "")
     form.setValue("senderStreet", data.senderStreet || "")
     form.setValue("senderPostcode", data.senderPostcode || "")
     form.setValue("senderCity", data.senderCity || "")
-  }
+  }, [form]);
 
-  const handleReceiverDataLoad: EnhancedDataManagerCallback = (data) => {
+  const handleReceiverDataLoad: EnhancedDataManagerCallback = useCallback((data) => {
     form.setValue("receiverName", data.receiverName || "")
     form.setValue("receiverStreet", data.receiverStreet || "")
     form.setValue("receiverPostcode", data.receiverPostcode || "")
     form.setValue("receiverCity", data.receiverCity || "")
     form.setValue("iban", data.iban || "HR")
-  }
+  }, [form]);
 
   // Handler for IBAN Calculator
-  const handleIBANSelect = (iban: string) => {
+  const handleIBANSelect = useCallback((iban: string) => {
     form.setValue("iban", iban)
-  }
+  }, [form]);
 
   async function onSubmit(values: PaymentFormData) {
     setIsLoading(true)
@@ -847,7 +849,8 @@ export default function PaymentForm() {
           variant: "destructive",
         })
       }
-    } catch {
+    } catch (error) {
+      console.error("Submission error:", error);
       toast({
         title: "Greška",
         description: "Došlo je do greške prilikom slanja obrasca. Molimo pokušajte ponovno.",
@@ -873,7 +876,7 @@ export default function PaymentForm() {
     }
   }
 
-  const createBarcodeCanvas = async (barcodeUrl: string): Promise<HTMLCanvasElement> => {
+  const createBarcodeCanvas = async (imageSrc: string): Promise<HTMLCanvasElement> => {
     return new Promise((resolve, reject) => {
       const img = new window.Image();
       img.crossOrigin = "anonymous";
@@ -896,8 +899,11 @@ export default function PaymentForm() {
 
         resolve(canvas);
       };
-      img.onerror = () => reject(new Error("Failed to load barcode image"));
-      img.src = barcodeUrl;
+      img.onerror = (error) => {
+        console.error("Image loading error:", error);
+        reject(new Error("Failed to load barcode image"));
+      };
+      img.src = imageSrc;
     });
   };
 
@@ -994,7 +1000,7 @@ export default function PaymentForm() {
 
           toast({
             title: "Info",
-            description: "Your browser doesn't support direct sharing. The barcode has been downloaded instead.",
+            description: "Vaš preglednik ne podržava izravno dijeljenje. Barkod je preuzet umjesto toga.",
           });
         }
       }, "image/png");
@@ -1002,13 +1008,50 @@ export default function PaymentForm() {
       console.error("Error sharing:", error);
       toast({
         title: "Error",
-        description: "Failed to share the barcode.",
+        description: "Došlo je do greške prilikom dijeljenja barkoda.",
         variant: "destructive",
       });
     }
   };
 
-  const fillDummyData = () => {
+  const handleGeneratePdf = async () => {
+    if (!currentFormUrl) {
+      toast({
+        title: "Greška",
+        description: "URL obrasca nije dostupan za generiranje PDF-a.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsPdfGenerating(true);
+    try {
+      const currentFormData = form.getValues();
+      // Use currentFormUrl received from FormLinkComponent
+      await generatePaymentPdf({
+        formData: currentFormData,
+        barcodeImageUrl: barcodeUrl, // Pass the currently generated barcode URL
+        formLink: currentFormUrl,
+      });
+
+      toast({
+        title: "PDF generiran",
+        description: "Uplatnica je uspješno generirana i preuzeta.",
+      });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "Greška",
+        description: "Došlo je do greške prilikom generiranja PDF-a. Molimo pokušajte ponovno.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPdfGenerating(false);
+    }
+  };
+
+
+  const fillDummyData = useCallback(() => {
     const dummyData: PaymentFormData = {
       senderName: "Pero Perić",
       senderStreet: "Nikole Tesle 1",
@@ -1026,9 +1069,9 @@ export default function PaymentForm() {
       description: "Uplata",
     }
     form.reset(dummyData)
-  }
+  }, [form]);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     form.reset({
       senderName: "",
       senderStreet: "",
@@ -1047,7 +1090,7 @@ export default function PaymentForm() {
     })
     setBarcodeUrl("")
     setSearchParams(new URLSearchParams())
-  }
+  }, [form, setSearchParams]);
 
   return (
     <div className="w-full">
@@ -1084,14 +1127,14 @@ export default function PaymentForm() {
           <CardContent>
             <div className="flex justify-center space-x-4 mb-6">
               <Button onClick={fillDummyData} className="hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500">
-                <LuTestTube className="mr-2 h-4 w-4" /> Umetni probne podatke
+                <LuTestTube className="mr-2 h-4 w-4" /> Demo
               </Button>
               <Button onClick={resetForm} className="hover:scale-105 hover:opacity-75 shadow-md shadow-red-500 hover:shadow-blue-500" variant="destructive">
                 <LuRotateCcw className="mr-2 h-4 w-4" /> Resetiraj
               </Button>
             </div>
 
-            {/* BARCODE DECODER - Add this section */}
+            {/* BARCODE DECODER */}
             <div className="mb-8">
               <BarcodeDecoder onDataDecoded={handleBarcodeDecoded} />
             </div>
@@ -1189,19 +1232,19 @@ export default function PaymentForm() {
                     control={form.control}
                     name="iban"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>IBAN</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="HR + 19 brojeva"
-                            className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow font-mono"
-                            maxLength={21}
-                            onPaste={handleIbanPaste}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                        <FormItem>
+                            <FormLabel>IBAN</FormLabel>
+                            <FormControl>
+                                <Input
+                                    placeholder="HR + 19 brojeva"
+                                    className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow font-mono"
+                                    maxLength={21}
+                                    onPaste={handleIbanPaste}
+                                    {...field}
+                                />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
                     )}
                   />
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1390,13 +1433,30 @@ export default function PaymentForm() {
                     <Button onClick={handleShare} className="hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500">
                       <LuShare2 className="mr-2 h-4 w-4" /> Podijeli
                     </Button>
+                    {/* New PDF button */}
+                    <Button
+                      onClick={handleGeneratePdf}
+                      disabled={isPdfGenerating || !barcodeUrl || !currentFormUrl} // Disable if already generating or no barcode or no form URL
+                      className="hover:scale-105 hover:opacity-75 shadow-md shadow-blue-500 hover:shadow-purple-500"
+                    >
+                      {isPdfGenerating ? (
+                        <>
+                          <LuLoader className="mr-2 h-4 w-4 animate-spin" />
+                          Generiram PDF...
+                        </>
+                      ) : (
+                        <>
+                          <LuFileText className="mr-2 h-4 w-4" /> Generiraj PDF
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             )}
-            <FormLinkComponent watch={form.watch} />
+            <FormLinkComponent watch={form.watch} onFormUrlChange={handleFormUrlChange} />
           </CardContent>
-          {isLoading && <LoadingSpinner />}
+          {(isLoading || isPdfGenerating) && <LoadingSpinner />}
         </Card>
 
         {/* Right sidebar - Saved Receivers + Bank/Account Analysis */}
@@ -1514,7 +1574,7 @@ export default function PaymentForm() {
 
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">Podaci o plaćanju</h3>
-                  
+
                   {/* IBAN Calculator for mobile */}
                   <div className="mb-4">
                     <IBANCalculator onIBANSelect={handleIBANSelect} />
@@ -1620,18 +1680,24 @@ export default function PaymentForm() {
                     />
                     <FormField
                       control={form.control}
-                      name="reference"
+                      name="purpose"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Poziv na broj <span className="text-sm text-muted-foreground">max 22</span></FormLabel>
-                          <FormControl>
-                            <ReferenceNumberInput
-                              value={field.value || ""}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              model={form.watch("model")}
-                            />
-                          </FormControl>
+                          <FormLabel>Namjena</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow">
+                                <SelectValue placeholder="Odaberite namjenu" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {purposeValues.map((purpose) => (
+                                <SelectItem key={purpose} value={purpose}>
+                                  {purpose}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1640,24 +1706,18 @@ export default function PaymentForm() {
 
                   <FormField
                     control={form.control}
-                    name="purpose"
+                    name="reference"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Namjena</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow">
-                              <SelectValue placeholder="Odaberite namjenu" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {purposeValues.map((purpose) => (
-                              <SelectItem key={purpose} value={purpose}>
-                                {purpose}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>Poziv na broj <span className="text-sm text-muted-foreground">max 22</span></FormLabel>
+                        <FormControl>
+                          <ReferenceNumberInput
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            model={form.watch("model")}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1722,12 +1782,29 @@ export default function PaymentForm() {
                     <Button onClick={handleShare} className="hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500">
                       <LuShare2 className="mr-2 h-4 w-4" /> Podijeli
                     </Button>
+                     {/* New PDF button for mobile */}
+                    <Button
+                      onClick={handleGeneratePdf}
+                      disabled={isPdfGenerating || !barcodeUrl || !currentFormUrl}
+                      className="hover:scale-105 hover:opacity-75 shadow-md shadow-blue-500 hover:shadow-purple-500"
+                    >
+                      {isPdfGenerating ? (
+                        <>
+                          <LuLoader className="mr-2 h-4 w-4 animate-spin" />
+                          Generiram PDF...
+                        </>
+                      ) : (
+                        <>
+                          <LuFileText className="mr-2 h-4 w-4" /> Generiraj PDF
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            <FormLinkComponent watch={form.watch} />
+            <FormLinkComponent watch={form.watch} onFormUrlChange={handleFormUrlChange} /> {/* Pass callback */}
 
             {/* Mobile validation components */}
             <div className="mt-8 space-y-4">
@@ -1737,7 +1814,7 @@ export default function PaymentForm() {
               <BankAccountValidationDisplay iban={form.watch("iban")} />
             </div>
           </CardContent>
-          {isLoading && <LoadingSpinner />}
+          {(isLoading || isPdfGenerating) && <LoadingSpinner />}
         </Card>
       </div>
     </div>

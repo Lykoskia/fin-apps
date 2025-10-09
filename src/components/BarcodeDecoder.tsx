@@ -1,8 +1,15 @@
-// Fixed ZXing implementation with proper Croatian character handling
-// Replace your current BarcodeDecoder component with this version
+/*
+
+Still trying to wrap my head around the final version of this component and its Croatian character handling.
+ZXing's PDF417 reader often misinterprets UTF-8 Croatian characters, leading to garbled text.
+This implementation applies multiple strategies to fix common encoding issues while preserving newlines crucial for HUB3 format.
+I will keep all the comments and logs for now to aid future debugging and understanding of the transformations.
+Otherwise, in a few months, this code will look like hyerogliphics written by aliens and I will never touch it ever again and pray for Cthulhu's forgiveness just in case.
+
+*/
 
 import React, { useState, useRef } from 'react';
-import { BrowserPDF417Reader } from '@zxing/library';
+import { BrowserPDF417Reader } from '@zxing/browser';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -22,7 +29,6 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Validate purpose code against allowed values
   const validatePurposeCode = (code: string): PurposeValue => {
     const cleanCode = code.trim().toUpperCase();
     if (purposeValues.includes(cleanCode as PurposeValue)) {
@@ -32,112 +38,126 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
     return "OTHR";
   };
 
-  // Comprehensive Croatian character fixing specifically for ZXing
+  // === REFINED fixZXingCroatianEncoding FUNCTION (SAFELY PRESERVING NEWLINES) ===
   const fixZXingCroatianEncoding = (text: string): string => {
-    console.log('Original ZXing text:', text);
-    console.log('Original bytes (first 100 chars):', [...text.slice(0, 100)].map(c => 
-      `${c}(${c.charCodeAt(0).toString(16)})`
-    ).join(' '));
+    console.log('--- fixZXingCroatianEncoding Start ---');
+    console.log('Input text (raw from ZXing):', JSON.stringify(text)); // Crucial for seeing what's really there
+    
+    let correctedText = text;
 
-    let fixed = text;
+    // Strategy 1: Attempt to reverse UTF-8-as-Latin-1 Mojibake (This often fixes newlines too)
+    try {
+        const decoded = decodeURIComponent(escape(text));
+        // Check if it seems like a valid reversal. It should produce `\n` (0x0A) for newlines.
+        // We're less concerned about `\uFFFD` if `decodeURIComponent` works as expected.
+        if (decoded !== text) { // If decoding actually changed something
+            correctedText = decoded;
+            console.log('Applied UTF-8-as-Latin-1 reversal:', JSON.stringify(correctedText));
+        } else {
+             console.log('UTF-8-as-Latin-1 reversal did not change the text.');
+        }
+    } catch (e) {
+        console.warn('UTF-8-as-Latin-1 reversal attempt failed:', e);
+    }
 
-    // Step 1: Fix the specific ZXing UTF-8 decoding issues seen in your logs
-    const zxingFixes: Array<[RegExp, string]> = [
-      // The exact pattern from your logs: "Ã„â€¡" = ć
-      [/Ã„â€¡/g, 'ć'],           // The exact sequence ZXing produces for "ć"
-      
-      // Let's also handle other Croatian characters that might have similar patterns
-      // We need to figure out what patterns ZXing creates for č, đ, š, ž
-      // For now, let's add some educated guesses based on the UTF-8 byte patterns:
-      
-      // Try to catch other potential patterns for Croatian chars
-      [/Ã„â€š/g, 'č'],           // Potential pattern for "č" (0xC4 0x8D)
-      [/Ã„â€'/g, 'đ'],           // Potential pattern for "đ" (0xC4 0x91)  
-      [/Ã…â€ /g, 'š'],           // Potential pattern for "š" (0xC5 0xA1)
-      [/Ã…â€¾/g, 'ž'],           // Potential pattern for "ž" (0xC5 0xBE)
-      
-      // Standard UTF-8 byte sequences (in case some work normally)
-      [/\u00C4\u008D/g, 'č'],    // č as 0xC4 0x8D
-      [/\u00C4\u0087/g, 'ć'],    // ć as 0xC4 0x87
-      [/\u00C4\u0091/g, 'đ'],    // đ as 0xC4 0x91
-      [/\u00C5\u00A1/g, 'š'],    // š as 0xC5 0xA1
-      [/\u00C5\u00BE/g, 'ž'],    // ž as 0xC5 0xBE
-      
-      // Clean up artifacts
-      [/\uFFFD/g, ''],           // Remove Unicode replacement character
-      [/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ''] // Remove control characters
+    // Strategy 2: Apply specific Croatian character explicit replacements
+    // These patterns target the typical garbling.
+    const replacements: Array<[RegExp, string]> = [
+      // Common Mojibake for Croatian (UTF-8 bytes misinterpreted as Windows-1252)
+      // These assume the `\u2021` (‡) etc. are correctly formed unicode chars in the JS string
+      [/Ä\u2021/g, 'ć'], // U+00C4 (Ä) + U+2021 (‡) -> ć
+      [/Ä\u2030/g, 'đ'], // U+00C4 (Ä) + U+2030 (‰) -> đ
+      [/Ä\u2039/g, 'č'], // U+00C4 (Ä) + U+2039 (‹) -> č
+      [/Å\u00a1/g, 'š'], // U+00C5 (Å) + U+00a1 (¡) -> š
+      [/Å\u017e/g, 'ž'], // U+00C5 (Å) + U+017e (ž) -> ž
+      // Uppercase (verify these against actual ZXing output if issues persist)
+      [/Ä\u008C/g, 'Č'], // U+00C4 (Ä) + U+008C (Œ) -> Č
+      [/Ä\u0086/g, 'Ć'], // U+00C4 (Ä) + U+0086 (Æ) -> Ć
+      [/Ä\u0090/g, 'Đ'], // U+00C4 (Ä) + U+0090 ( ) -> Đ
+      [/Å\u00a0/g, 'Š'], // U+00C5 (Å) + U+00a0 ( ) -> Š
+      [/Å\u017d/g, 'Ž'], // U+00C5 (Å) + U+017D (Ž) -> Ž
+
+      // Other common potential single character issues that might slip through
+      [/Ä\u0087/g, 'ć'], // Just in case a slightly different unicode sequence for ć shows up
+      [/Ä\u008D/g, 'č'], // Just in case
+      [/Ä\u0091/g, 'đ'], // Just in case
+      [/Å\u00a1/g, 'š'], // Just in case
+      [/Å\u017e/g, 'ž'], // Just in case
     ];
 
-    // Apply all fixes in sequence
-    zxingFixes.forEach(([pattern, replacement]) => {
-      const beforeLength = fixed.length;
-      fixed = fixed.replace(pattern, replacement);
-      if (fixed.length !== beforeLength) {
-        console.log(`Applied fix: ${pattern} -> ${replacement}`);
+    // Apply specific fixes
+    replacements.forEach(([pattern, replacement]) => {
+      const before = correctedText;
+      correctedText = correctedText.replace(pattern, replacement);
+      if (correctedText !== before) {
+        console.log(`Applied explicit Mojibake fix: '${pattern.source}' -> '${replacement}'`);
       }
     });
 
-    // Step 2: Normalize using NFC (same as your encoding process)
-    fixed = fixed.normalize('NFC');
+    // Strategy 3: SAFE Cleanup of invalid/unwanted characters, PRESERVING newlines
+    // We only remove null characters and the Unicode Replacement Character.
+    // Control characters from 0x01-0x1F are problematic for parsing unless they are newlines (0x0A) or tabs (0x09).
+    // Given the HUB3 format uses newlines, we must explicitly keep 0x0A.
+    // The `\x00` (NULL) and `\uFFFD` (replacement char) are definite bad.
+    correctedText = correctedText.replace(/\x00/g, ''); // Remove NULL bytes
+    correctedText = correctedText.replace(/\uFFFD/g, ''); // Remove Unicode replacement character
 
-    console.log('After Croatian fixes:', fixed);
-    console.log('Fixed bytes (first 100 chars):', [...fixed.slice(0, 100)].map(c => 
-      `${c}(${c.charCodeAt(0).toString(16)})`
-    ).join(' '));
+    // We no longer use /[\x00-\x1F\x7F]/g, as it removed the `\n`.
+    // If other non-printable chars (besides newline) are still an issue,
+    // they need to be targeted very specifically (e.g., /\t/g for tabs if not wanted).
 
-    return fixed;
+    // Final normalization to ensure consistent form and trim whitespace
+    correctedText = correctedText.normalize('NFC').trim();
+
+    console.log('Final text after all Croatian fixes:', JSON.stringify(correctedText));
+    console.log('--- fixZXingCroatianEncoding End ---');
+    return correctedText;
   };
+  // === END UPDATED fixZXingCroatianEncoding FUNCTION ===
 
   // Parse HUB3 barcode data with improved Croatian character handling
   const parseHUB3Data = (rawDecodedText: string): Partial<PaymentFormData> => {
     try {
       console.log('=== HUB3 Parsing Start ===');
       console.log('Raw ZXing output length:', rawDecodedText.length);
-      console.log('Raw ZXing output:', JSON.stringify(rawDecodedText));
-      
-      // Apply Croatian character fixes
+      console.log('Raw ZXing output (stringified for visibility):', JSON.stringify(rawDecodedText));
+
       const processedText = fixZXingCroatianEncoding(rawDecodedText);
-      
-      console.log('After processing:', processedText);
-      
+
+      console.log('After processing (fixZXingCroatianEncoding):', processedText);
+
       const lines = processedText.split('\n').map(line => line.trim());
       console.log('Split into lines:', lines.length, 'lines');
       console.log('Lines:', lines);
-      
-      // Validate HUB3 format
+
       if (lines.length < 14 || lines[0] !== 'HRVHUB30') {
         console.error('Invalid format. Expected HRVHUB30, got:', lines[0]);
         throw new Error(`Invalid HUB3 barcode format. Expected HRVHUB30, got: ${lines[0]}`);
       }
 
-      // Parse amount
       const amountStr = lines[2];
       if (!/^\d{15}$/.test(amountStr)) {
         console.error('Invalid amount format:', amountStr);
         throw new Error('Invalid amount format in barcode');
       }
-      
-      const amountNumeric = parseInt(amountStr) / 100;
+
+      const amountNumeric = parseInt(amountStr, 10) / 100; // radix 10 for safety
       const formattedAmount = amountNumeric === 0 ? "0,00" : amountNumeric.toLocaleString('hr-HR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       });
 
-      // Parse sender location
       const senderLocationParts = lines[5].split(' ');
       const senderPostcode = senderLocationParts[0] || '';
       const senderCity = senderLocationParts.slice(1).join(' ') || '';
 
-      // Parse receiver location
       const receiverLocationParts = lines[8].split(' ');
       const receiverPostcode = receiverLocationParts[0] || '';
       const receiverCity = receiverLocationParts.slice(1).join(' ') || '';
 
-      // Parse model
       const modelWithPrefix = lines[10];
       const model = modelWithPrefix.replace('HR', '') || '00';
 
-      // Validate purpose code
       const purposeCode = validatePurposeCode(lines[12] || 'OTHR');
 
       const result = {
@@ -156,7 +176,7 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
         purpose: purposeCode,
         description: lines[13] || '',
       };
-      
+
       console.log('Final parsed result:', result);
       console.log('=== HUB3 Parsing End ===');
       return result;
@@ -166,18 +186,16 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
     }
   };
 
-  // Decode barcode using ZXing with enhanced error handling
   const decodeBarcode = async (imageFile: File) => {
     setIsDecoding(true);
-    
+
     try {
       console.log('=== Barcode Decoding Start ===');
-      console.log('Image file:', imageFile.name, imageFile.size, 'bytes');
-      
-      // Create image element
+      console.log('Image file:', imageFile.name, imageFile.type, imageFile.size, 'bytes');
+
       const imageUrl = URL.createObjectURL(imageFile);
       const image = new window.Image();
-      
+
       await new Promise((resolve, reject) => {
         image.onload = resolve;
         image.onerror = (e) => {
@@ -189,44 +207,38 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
 
       console.log('Image loaded:', image.width, 'x', image.height);
 
-      // Initialize ZXing PDF417 reader
       const codeReader = new BrowserPDF417Reader();
-      
-      // Decode the barcode
+
       console.log('Starting ZXing decode...');
-      const result = await codeReader.decodeFromImage(image);
-      
+      const result = await codeReader.decodeFromImageElement(image);
+
       console.log('ZXing decode successful!');
       console.log('Result format:', result.getBarcodeFormat());
       console.log('Raw text length:', result.getText().length);
-      
-      // Get the raw decoded text
+
       const rawText = result.getText();
-      
-      // Parse the data
+
       const parsedData = parseHUB3Data(rawText);
-      
-      // Clean up
+
       URL.revokeObjectURL(imageUrl);
-      
-      // Send to parent component
+
       onDataDecoded(parsedData);
-      
+
       toast({
         title: "Barkod uspješno dekodiran!",
-        description: "Podaci su učitani u obrazac. Provjerite rezultate u konzoli.",
+        description: "Podaci su učitani u obrazac. Provjerite konzolu za detalje dekodiranja.",
       });
 
     } catch (error) {
       console.error('=== Barcode Decoding Error ===');
       console.error('Error details:', error);
-      
+
       let errorMessage = "Nije moguće dekodirati barkod. Provjerite je li slika jasna i sadrži valjan HUB3 barkod.";
-      
+
       if (error instanceof Error) {
         console.log('Error type:', error.constructor.name);
         console.log('Error message:', error.message);
-        
+
         if (error.message.includes("No MultiFormat Readers")) {
           errorMessage = "Barkod nije pronađen na slici. Provjerite je li barkod jasno vidljiv.";
         } else if (error.message.includes("Invalid HUB3")) {
@@ -235,9 +247,11 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
           errorMessage = "Barkod sadrži neispravan iznos. Provjerite je li barkod neoštećen.";
         } else if (error.message.includes("Failed to load image")) {
           errorMessage = "Nije moguće učitati sliku. Provjerite format datoteke.";
+        } else if (error.message.includes("Failed to parse barcode data")) {
+          errorMessage = error.message; // Use the specific error message from parseHUB3Data
         }
       }
-      
+
       toast({
         title: "Greška pri dekodiranju",
         description: errorMessage,
@@ -249,10 +263,9 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
     }
   };
 
-  // Handle file selection with validation
   const handleFileSelect = (file: File) => {
     console.log('File selected:', file.name, file.type, file.size);
-    
+
     if (!file.type.startsWith('image/')) {
       toast({
         title: "Neispravna datoteka",
@@ -271,15 +284,12 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
       return;
     }
 
-    // Show preview
     const imageUrl = URL.createObjectURL(file);
     setUploadedImage(imageUrl);
 
-    // Start decoding
     decodeBarcode(file);
   };
 
-  // Drag and drop handlers
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -294,7 +304,7 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     const files = e.dataTransfer.files;
     if (files && files[0]) {
       handleFileSelect(files[0]);
@@ -329,11 +339,10 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
       <CardContent>
         {!uploadedImage ? (
           <div
-            className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              dragActive
-                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-                : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'
-            }`}
+            className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${dragActive
+              ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+              : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'
+              }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
@@ -358,7 +367,7 @@ export default function BarcodeDecoder({ onDataDecoded }: BarcodeDecoderProps) {
                 Podržani formati: PNG, JPG, JPEG (max 10MB) • ZXing PDF417
               </p>
             </div>
-            
+
             <Input
               ref={fileInputRef}
               type="file"
