@@ -1850,7 +1850,7 @@ export default function PaymentForm() {
                 onClick={fillDummyData}
                 className="shadow-green-500 hover:shadow-blue-500 hover:scale-105 hover:opacity-75 shadow-md"
               >
-                <LuTestTube className="mr-2 h-4 w-4" /> Umetni probne podatke
+                <LuTestTube className="mr-2 h-4 w-4" /> Demo
               </Button>
               <Button
                 onClick={resetForm}
