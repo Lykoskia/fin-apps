@@ -841,7 +841,14 @@ export default function PaymentForm() {
         toast({
           title: "Obrazac je uspješno poslan",
           description: "Vaš barkod je generiran.",
-        })
+        });
+        const newParams = new URLSearchParams();
+        Object.entries(values).forEach(([key, value]) => {
+          if (value && String(value).trim() !== "") {
+            newParams.set(key, String(value));
+          }
+        });
+        setSearchParams(newParams);
       } else {
         toast({
           title: "Greška",
@@ -1232,19 +1239,19 @@ export default function PaymentForm() {
                     control={form.control}
                     name="iban"
                     render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>IBAN</FormLabel>
-                            <FormControl>
-                                <Input
-                                    placeholder="HR + 19 brojeva"
-                                    className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow font-mono"
-                                    maxLength={21}
-                                    onPaste={handleIbanPaste}
-                                    {...field}
-                                />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
+                      <FormItem>
+                        <FormLabel>IBAN</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="HR + 19 brojeva"
+                            className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow font-mono"
+                            maxLength={21}
+                            onPaste={handleIbanPaste}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
                   />
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1782,7 +1789,7 @@ export default function PaymentForm() {
                     <Button onClick={handleShare} className="hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500">
                       <LuShare2 className="mr-2 h-4 w-4" /> Podijeli
                     </Button>
-                     {/* New PDF button for mobile */}
+                    {/* New PDF button for mobile */}
                     <Button
                       onClick={handleGeneratePdf}
                       disabled={isPdfGenerating || !barcodeUrl || !currentFormUrl}
