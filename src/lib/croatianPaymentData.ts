@@ -6,110 +6,251 @@ export const validateIBAN = (IBAN: string): boolean => {
   if (!ibanPattern.test(IBAN)) return false
 
   const rearrangedIBAN = IBAN.slice(4) + IBAN.slice(0, 4)
-  const integerFixedIBAN = rearrangedIBAN.replace(/[A-Z]/g, (c) => (c.charCodeAt(0) - 55).toString())
+  const integerFixedIBAN = rearrangedIBAN.replace(
+    /[A-Z]/g,
+    (c) => (c.charCodeAt(0) - 55).toString(),
+  )
 
   return modFix(integerFixedIBAN, 97) === 1
 }
 
 const modFix = (dividend: string, divisor: number): number => {
-  return [...dividend].reduce((x, digit) => (x * 10 + Number.parseInt(digit)) % divisor, 0)
+  return [...dividend].reduce(
+    (x, digit) => (x * 10 + Number.parseInt(digit)) % divisor,
+    0,
+  )
 }
 
 export const generateIBAN = (bankCode: string, accountNumber: string): string => {
   const countryCode = "HR"
   const initialIBAN = bankCode + accountNumber + "172700" // HR00
-  const integer_fixed_IBAN = initialIBAN.replace(/[A-Z]/g, (c) => (c.charCodeAt(0) - 55).toString())
+  const integer_fixed_IBAN = initialIBAN.replace(
+    /[A-Z]/g,
+    (c) => (c.charCodeAt(0) - 55).toString(),
+  )
   const mod = modFix(integer_fixed_IBAN, 97)
   const checkDigits = (98 - mod).toString().padStart(2, "0")
   return countryCode + checkDigits + bankCode + accountNumber
 }
 
 export const croatianBanks = [
-  { name: 'ADDIKO BANK d.d. Zagreb', code: '2500009' },
-  { name: 'AGRAM BANKA d.d. Zagreb', code: '2481000' },
-  { name: 'BANKA KOVANICA d.d. Varaždin', code: '4133006' },
-  { name: 'BKS BANK AG, Glavna podružnica Hrvatska', code: '2488001' },
-  { name: 'CROATIA BANKA d.d. Zagreb', code: '2485003' },
-  { name: 'ERSTE & STEIERMÄRKISCHE BANK d.d. Rijeka', code: '2402006' },
-  { name: 'HRVATSKA BANKA ZA OBNOVU I RAZVITAK Zagreb', code: '2493003' },
-  { name: 'HRVATSKA NARODNA BANKA', code: '1001005' },
-  { name: 'HRVATSKA POŠTANSKA BANKA d.d. Zagreb', code: '2390001' },
-  { name: 'IMEX BANKA d.d. Split', code: '2492008' },
-  { name: 'ISTARSKA KREDITNA BANKA UMAG d.d. Umag', code: '2380006' },
-  { name: 'J&T banka d.d. Varaždin', code: '2489004' },
-  { name: 'KARLOVAČKA BANKA d.d. Karlovac', code: '2400008' },
-  { name: 'KENTBANK d.d. Zagreb', code: '4124003' },
-  { name: 'OTP BANKA d.d. Split', code: '2407000' },
-  { name: 'PARTNER BANKA d.d. Zagreb', code: '2408002' },
-  { name: 'PODRAVSKA BANKA d.d. Koprivnica', code: '2386002' },
-  { name: 'PRIVREDNA BANKA ZAGREB d.d. Zagreb', code: '2340009' },
-  { name: 'RAIFFEISENBANK AUSTRIA d.d. Zagreb', code: '2484008' },
-  { name: 'SAMOBORSKA BANKA d.d. Samobor', code: '2403009' },
-  { name: 'SLATINSKA BANKA d.d. Slatina', code: '2412009' },
-  { name: 'ZAGREBAČKA BANKA d.d. Zagreb', code: '2360000' }
+  { name: "ADDIKO BANK d.d. Zagreb", code: "2500009" },
+  { name: "AGRAM BANKA d.d. Zagreb", code: "2481000" },
+  { name: "BANKA KOVANICA d.d. Varaždin", code: "4133006" },
+  { name: "BKS BANK AG, Glavna podružnica Hrvatska", code: "2488001" },
+  { name: "CROATIA BANKA d.d. Zagreb", code: "2485003" },
+  { name: "ERSTE & STEIERMÄRKISCHE BANK d.d. Rijeka", code: "2402006" },
+  { name: "HRVATSKA BANKA ZA OBNOVU I RAZVITAK Zagreb", code: "2493003" },
+  { name: "HRVATSKA NARODNA BANKA", code: "1001005" },
+  { name: "HRVATSKA POŠTANSKA BANKA d.d. Zagreb", code: "2390001" },
+  { name: "IMEX BANKA d.d. Split", code: "2492008" },
+  { name: "ISTARSKA KREDITNA BANKA UMAG d.d. Umag", code: "2380006" },
+  { name: "J&T banka d.d. Varaždin", code: "2489004" },
+  { name: "KARLOVAČKA BANKA d.d. Karlovac", code: "2400008" },
+  { name: "KENTBANK d.d. Zagreb", code: "4124003" },
+  { name: "OTP BANKA d.d. Split", code: "2407000" },
+  { name: "PARTNER BANKA d.d. Zagreb", code: "2408002" },
+  { name: "PODRAVSKA BANKA d.d. Koprivnica", code: "2386002" },
+  { name: "PRIVREDNA BANKA ZAGREB d.d. Zagreb", code: "2340009" },
+  { name: "RAIFFEISENBANK AUSTRIA d.d. Zagreb", code: "2484008" },
+  { name: "SAMOBORSKA BANKA d.d. Samobor", code: "2403009" },
+  { name: "SLATINSKA BANKA d.d. Slatina", code: "2412009" },
+  { name: "ZAGREBAČKA BANKA d.d. Zagreb", code: "2360000" },
 ]
 
+const calculateCroatianCheckDigit = (numberString: string): number => {
+  let remainder = 10 // Starting value for Croatian algorithms
+
+  for (let i = 0; i < numberString.length; i++) {
+    const digit = Number.parseInt(numberString[i])
+    remainder += digit
+    remainder = remainder % 10 || 10 // If remainder is 0, use 10
+    remainder *= 2
+    remainder = remainder % 11
+  }
+
+  let controlDigit = 11 - remainder
+  if (controlDigit === 10) controlDigit = 0 // Special rule for 10
+  return controlDigit
+}
+
+// Validate a 7-digit Croatian bank code (first 6 digits + 1 check digit)
+export const validateCroatianBankCode = (bankCode: string): boolean => {
+  if (!/^\d{7}$/.test(bankCode)) return false // Must be 7 digits
+
+  const baseCode = bankCode.substring(0, 6)
+  const expectedControlDigit = Number.parseInt(bankCode[6])
+  const calculatedControlDigit = calculateCroatianCheckDigit(baseCode)
+
+  return calculatedControlDigit === expectedControlDigit
+}
+
+// Validate a 10-digit Croatian account number (first 9 digits + 1 check digit)
+export const validateCroatianAccountNumber = (accountNumber: string): boolean => {
+  if (!/^\d{10}$/.test(accountNumber)) return false // Must be 10 digits
+
+  const baseNumber = accountNumber.substring(0, 9)
+  const expectedControlDigit = Number.parseInt(accountNumber[9])
+  const calculatedControlDigit = calculateCroatianCheckDigit(baseNumber)
+
+  return calculatedControlDigit === expectedControlDigit
+}
+
 export const purposeValues = [
-
-  'ACCT', 'ADVA', 'AGRT', 'AIRB', 'ALMY',
-  'ANNI', 'ANTS', 'AREN', 'BECH', 'BENE',
-  'BEXP', 'BOCE', 'BONU', 'BUSB', 'CASH',
-  'CBFF', 'CBTV', 'CCRD', 'CDBL', 'CDCB',
-  'CDCD', 'CDOC', 'CDQC', 'CFEE', 'CHAR',
-  'CLPR', 'CMDT', 'COLL', 'COMC', 'COMM',
-  'COMT', 'COST', 'CPYR', 'CSDB', 'CSLP',
-  'CVCF', 'DBTC', 'DCRD', 'DEPT', 'DERI',
-  'DIVD', 'DMEQ', 'DNTS', 'ELEC', 'ENRG',
-  'ESTX', 'FERB', 'FREX', 'GDDS', 'GDSV',
-  'GOVI', 'GOVT', 'GSCB', 'GVEA', 'GVEB',
-  'GVEC', 'GVED', 'HLRP', 'HLTC', 'HLTI',
-  'HSPC', 'ICCP', 'ICRF', 'IDCP', 'INPC',
-  'INSM', 'INSU', 'INTC', 'INTE', 'INTX',
-  'LBRI', 'LICF', 'LIFI', 'LIMA', 'LOAN',
-  'LOAR', 'LTCF', 'MDCS', 'MSCV', 'NETT',
-  'NITX', 'NOWS', 'NWCH', 'NWCM', 'OFEE',
-  'OTHR', 'OTLC', 'PADD', 'PAYR', 'PENS',
-  'PHON', 'POPE', 'PPTI', 'PRCP', 'PRME',
-  'RCKE', 'RCPT', 'REFU', 'RENT', 'RINP',
-  'RLWY', 'ROYA', 'SALA', 'SAVG', 'SCVE',
-  'SECU', 'SSBE', 'STDY', 'SUBS', 'SUPP',
-  'TAXS', 'TELI', 'TRAD', 'TREA', 'TRFD',
-  'VATX', 'VIEW', 'WEBI', 'WHLD', 'WTER'
-
+  "ACCT",
+  "ADVA",
+  "AGRT",
+  "AIRB",
+  "ALMY",
+  "ANNI",
+  "ANTS",
+  "AREN",
+  "BECH",
+  "BENE",
+  "BEXP",
+  "BOCE",
+  "BONU",
+  "BUSB",
+  "CASH",
+  "CBFF",
+  "CBTV",
+  "CCRD",
+  "CDBL",
+  "CDCB",
+  "CDCD",
+  "CDOC",
+  "CDQC",
+  "CFEE",
+  "CHAR",
+  "CLPR",
+  "CMDT",
+  "COLL",
+  "COMC",
+  "COMM",
+  "COMT",
+  "COST",
+  "CPYR",
+  "CSDB",
+  "CSLP",
+  "CVCF",
+  "DBTC",
+  "DCRD",
+  "DEPT",
+  "DERI",
+  "DIVD",
+  "DMEQ",
+  "DNTS",
+  "ELEC",
+  "ENRG",
+  "ESTX",
+  "FERB",
+  "FREX",
+  "GDDS",
+  "GDSV",
+  "GOVI",
+  "GOVT",
+  "GSCB",
+  "GVEA",
+  "GVEB",
+  "GVEC",
+  "GVED",
+  "HLRP",
+  "HLTC",
+  "HLTI",
+  "HSPC",
+  "ICCP",
+  "ICRF",
+  "IDCP",
+  "INPC",
+  "INSM",
+  "INSU",
+  "INTC",
+  "INTE",
+  "INTX",
+  "LBRI",
+  "LICF",
+  "LIFI",
+  "LIMA",
+  "LOAN",
+  "LOAR",
+  "LTCF",
+  "MDCS",
+  "MSCV",
+  "NETT",
+  "NITX",
+  "NOWS",
+  "NWCH",
+  "NWCM",
+  "OFEE",
+  "OTHR",
+  "OTLC",
+  "PADD",
+  "PAYR",
+  "PENS",
+  "PHON",
+  "POPE",
+  "PPTI",
+  "PRCP",
+  "PRME",
+  "RCKE",
+  "RCPT",
+  "REFU",
+  "RENT",
+  "RINP",
+  "RLWY",
+  "ROYA",
+  "SALA",
+  "SAVG",
+  "SCVE",
+  "SECU",
+  "SSBE",
+  "STDY",
+  "SUBS",
+  "SUPP",
+  "TAXS",
+  "TELI",
+  "TRAD",
+  "TREA",
+  "TRFD",
+  "VATX",
+  "VIEW",
+  "WEBI",
+  "WHLD",
+  "WTER",
 ] as const
 
 export type PurposeValue = (typeof purposeValues)[number]
 
 export const serviceIBANMapping = [
-  { service: 'HT Hrvatski Telekom fiksne usluge', IBAN: 'HR8523600001500074255' },
-  { service: 'HT Hrvatski Telekom mobilne usluge', IBAN: 'HR6023600001500200999' },
-  { service: 'A1 Hrvatska', IBAN: 'HR4623900011100337943' },
-  { service: 'Telemach Hrvatska', IBAN: 'HR4523400091510186599' },
-  { service: 'HZZO obavezno zdravstveno osiguranje', IBAN: 'HR6510010051550100001' },
-  { service: 'HZZO dopunsko zdravstveno osiguranje', IBAN: 'HR3310010051550200002' },
-  { service: 'Državni proračun Republike Hrvatske', IBAN: 'HR1210010051863000160' },
-  { service: 'Grad Zagreb', IBAN: 'HR3423600001813300007' },
-  { service: 'Bjelovarsko-bilogorska županija', IBAN: 'HR9224020061800007002' },
-  { service: 'Brodsko-posavska županija', IBAN: 'HR5723400091800012004' },
-  { service: 'Dubrovačko-neretvanska županija', IBAN: 'HR5623400091800019006' },
-  { service: 'Istarska županija', IBAN: 'HR7924020061800018003' },
-  { service: 'Karlovačka županija', IBAN: 'HR5024000081800004004' },
-  { service: 'Koprivničko-križevačka županija', IBAN: 'HR2123860021800006000' },
-  { service: 'Krapinsko-zagorska županija', IBAN: 'HR6823400091800002009' },
-  { service: 'Ličko-senjska županija', IBAN: 'HR5123400091800009008' },
-  { service: 'Međimurska županija', IBAN: 'HR7724070001800020004' },
-  { service: 'Osječko-baranjska županija', IBAN: 'HR2423600001800014000' },
-  { service: 'Požeško-slavonska županija', IBAN: 'HR7125000091800011001' },
-  { service: 'Primorsko-goranska županija', IBAN: 'HR7424020061800008005' },
-  { service: 'Sisačko-moslavačka županija', IBAN: 'HR5623400091800003001' },
-  { service: 'Splitsko-dalmatsinka županija', IBAN: 'HR7124070001800017008' },
-  { service: 'Šibensko-kninska županija', IBAN: 'HR4323900011800015002' },
-  { service: 'Varaždinska županija', IBAN: 'HR4423600001800005007' },
-  { service: 'Virovitičko-podravska županija', IBAN: 'HR1423600001800010009' },
-  { service: 'Vukovarsko-srijemska županija', IBAN: 'HR2523900011800016005' },
-  { service: 'Zadarska županija', IBAN: 'HR4424020061800013007' },
-  { service: 'Zagrebačka županija', IBAN: 'HR8623400091800001006' },
-  { service: 'RI-19 D.O.O.', IBAN: 'HR5824120091342000574' }
+  { service: "HT Hrvatski Telekom fiksne usluge", IBAN: "HR8523600001500074255" },
+  { service: "HT Hrvatski Telekom mobilne usluge", IBAN: "HR6023600001500200999" },
+  { service: "A1 Hrvatska", IBAN: "HR4623900011100337943" },
+  { service: "Telemach Hrvatska", IBAN: "HR4523400091510186599" },
+  { service: "HZZO obavezno zdravstveno osiguranje", IBAN: "HR6510010051550100001" },
+  { service: "HZZO dopunsko zdravstveno osiguranje", IBAN: "HR3310010051550200002" },
+  { service: "Državni proračun Republike Hrvatske", IBAN: "HR1210010051863000160" },
+  { service: "Grad Zagreb", IBAN: "HR3423600001813300007" },
+  { service: "Bjelovarsko-bilogorska županija", IBAN: "HR9224020061800007002" },
+  { service: "Brodsko-posavska županija", IBAN: "HR5723400091800012004" },
+  { service: "Dubrovačko-neretvanska županija", IBAN: "HR5623400091800019006" },
+  { service: "Istarska županija", IBAN: "HR7924020061800018003" },
+  { service: "Karlovačka županija", IBAN: "HR5024000081800004004" },
+  { service: "Koprivničko-križevačka županija", IBAN: "HR2123860021800006000" },
+  { service: "Krapinsko-zagorska županija", IBAN: "HR6823400091800002009" },
+  { service: "Ličko-senjska županija", IBAN: "HR5123400091800009008" },
+  { service: "Međimurska županija", IBAN: "HR7724070001800020004" },
+  { service: "Osječko-baranjska županija", IBAN: "HR2423600001800014000" },
+  { service: "Požeško-slavonska županija", IBAN: "HR7125000091800011001" },
+  { service: "Primorsko-goranska županija", IBAN: "HR7424020061800008005" },
+  { service: "Sisačko-moslavačka županija", IBAN: "HR5623400091800003001" },
+  { service: "Splitsko-dalmatsinka županija", IBAN: "HR7124070001800017008" },
+  { service: "Šibensko-kninska županija", IBAN: "HR4323900011800015002" },
+  { service: "Varaždinska županija", IBAN: "HR4423600001800005007" },
+  { service: "Virovitičko-podravska županija", IBAN: "HR1423600001800010009" },
+  { service: "Vukovarsko-srijemska županija", IBAN: "HR2523900011800016005" },
+  { service: "Zadarska županija", IBAN: "HR4424020061800013007" },
+  { service: "Zagrebačka županija", IBAN: "HR8623400091800001006" },
+  { service: "RI-19 D.O.O.", IBAN: "HR5824120091342000574" },
 ]
 
 export const placeValues = new Map<number, string>([
@@ -567,6 +708,7 @@ export const placeValues = new Map<number, string>([
   [32261, "Rajevo Selo"],
   [32262, "Račinovci"],
   [32263, "Đurići"],
+  [32264, "Jarmina"],
   [32270, "Županja"],
   [32271, "Rokovci Andrijaševci"],
   [32272, "Cerna"],
@@ -574,11 +716,10 @@ export const placeValues = new Map<number, string>([
   [32274, "Štitar"],
   [32275, "Bošnjaci"],
   [32276, "Babina Greda"],
-  [32280, "Jarmina"],
-  [32281, "Ivankovo"],
-  [32282, "Retkovci"],
-  [32283, "Vođinci"],
-  [32284, "Stari Mikanovci"],
+  [32280, "Ivankovo"],
+  [32281, "Retkovci"],
+  [32282, "Vođinci"],
+  [32283, "Stari Mikanovci"],
   [33000, "Virovitica"],
   [33404, "Špišić Bukovica"],
   [33405, "Pitomača"],

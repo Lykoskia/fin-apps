@@ -1,4 +1,4 @@
-"use client"
+/* "use client"
 
 import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -573,7 +573,6 @@ export function BankAccountValidationDisplay({ iban }: { iban: string }) {
 
   return (
     <div className="space-y-4">
-      {/* Bank Code Validation */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -607,7 +606,6 @@ export function BankAccountValidationDisplay({ iban }: { iban: string }) {
         )}
       </Card>
 
-      {/* Account Number Validation */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -868,3 +866,5 @@ export function ValidationSummaryCard({ iban }: ValidationSummaryProps) {
     </Card>
   )
 }
+
+*/

@@ -2,15 +2,37 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import { Check, ChevronUp, ChevronDown, Calculator, List, X } from "lucide-react"
 import { LuBan, LuPlay, LuLoader } from "react-icons/lu"
 import { cn } from "@/lib/utils"
-import { validateIBAN, generateIBAN, croatianBanks, serviceIBANMapping } from "@/lib/croatianPaymentData"
+import {
+  validateIBAN,
+  generateIBAN,
+  croatianBanks,
+  serviceIBANMapping,
+  validateCroatianAccountNumber,
+} from "@/lib/croatianPaymentData"
 import { useToast } from "@/hooks/use-toast"
 
 interface IBANCalculatorProps {
@@ -43,52 +65,41 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
       croatianBanks.filter((bank) => {
         const bankName = bank.name.toLowerCase()
         const bankCode = bank.code.toLowerCase()
-        return searchTerms.every(term =>
-          bankName.includes(term) || bankCode.includes(term)
+        return searchTerms.every(
+          (term) => bankName.includes(term) || bankCode.includes(term),
         )
-      })
+      }),
     )
   }
 
   const handleServiceFilter = (value: string) => {
     const lowercaseValue = value.toLowerCase()
     setFilteredServices(
-      serviceIBANMapping.filter((service) =>
-        service.service.toLowerCase().includes(lowercaseValue) ||
-        service.IBAN.includes(value)
-      )
+      serviceIBANMapping.filter(
+        (service) =>
+          service.service.toLowerCase().includes(lowercaseValue) ||
+          service.IBAN.includes(value),
+      ),
     )
   }
 
-  const isControlDigitValid = (accNumber: string): boolean => {
-    if (accNumber.length !== 10) return false
-
-    const reducer = (intermediateRemainder: number, digit: string): number => {
-      const parsedDigit = Number.parseInt(digit)
-      intermediateRemainder += parsedDigit
-      intermediateRemainder = intermediateRemainder % 10 || 10
-      intermediateRemainder *= 2
-      intermediateRemainder = intermediateRemainder % 11
-      return intermediateRemainder
-    }
-
-    const intermediateRemainder = Array.from(accNumber.slice(0, 9)).reduce(reducer, 10)
-    let controlDigit = 11 - intermediateRemainder
-    if (controlDigit === 10) controlDigit = 0
-
-    return controlDigit === Number.parseInt(accNumber[9])
-  }
-
   useEffect(() => {
-    if (accountNumber.length === 10 && !isControlDigitValid(accountNumber)) {
-      toast({
-        title: "Greška",
-        description: "Neispravan broj računa!",
-        variant: "destructive"
-      })
+    if (accountNumber.length === 10) {
+      if (!validateCroatianAccountNumber(accountNumber)) {
+        toast({
+          title: "Greška",
+          description: "Neispravan broj računa (kontrolna znamenka).",
+          variant: "destructive",
+        })
+        setIsAccountNumberValid(false)
+      } else {
+        setIsAccountNumberValid(true)
+      }
+    } else if (accountNumber.length > 0) {
+      // Only set to false if it's not 10 digits and not empty
       setIsAccountNumberValid(false)
     } else {
-      setIsAccountNumberValid(true)
+      setIsAccountNumberValid(true) // If empty, consider it "valid" for input purposes
     }
   }, [accountNumber, toast])
 
@@ -99,7 +110,7 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
       toast({
         title: "Greška",
         description: "Molimo odaberite valjanu banku.",
-        variant: "destructive"
+        variant: "destructive",
       })
       setIsLoading(false)
       return
@@ -107,8 +118,17 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
     if (!isAccountNumberValid) {
       toast({
         title: "Greška",
-        description: "Neispravan broj računa.",
-        variant: "destructive"
+        description: "Neispravan broj računa. Molimo provjerite unos.",
+        variant: "destructive",
+      })
+      setIsLoading(false)
+      return
+    }
+    if (accountNumber.length !== 10) {
+      toast({
+        title: "Greška",
+        description: "Broj računa mora imati točno 10 znamenki.",
+        variant: "destructive",
       })
       setIsLoading(false)
       return
@@ -120,7 +140,7 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
         onIBANSelect(generatedIBAN)
         toast({
           title: "Uspjeh",
-          description: `IBAN: ${generatedIBAN}`
+          description: `IBAN: ${generatedIBAN}`,
         })
         setIsGenerateOpen(false)
         setSelectedBank("")
@@ -128,7 +148,8 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
       } else {
         toast({
           title: "Greška",
-          description: "Generirani IBAN je neispravan. Molimo provjerite unesene podatke.",
+          description:
+            "Generirani IBAN je neispravan. Molimo provjerite unesene podatke.",
           variant: "destructive",
         })
       }
@@ -149,7 +170,7 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
       onIBANSelect(iban)
       toast({
         title: "Uspjeh",
-        description: `IBAN: ${iban}`
+        description: `IBAN: ${iban}`,
       })
       setIsSelectOpen(false)
       setSelectedService("")
@@ -175,19 +196,21 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-center">Generirajte ili odaberite IBAN:</h3>
+      <h3 className="text-center text-lg font-semibold">
+        Generirajte ili odaberite IBAN:
+      </h3>
       <div className="flex justify-center gap-4">
         <Button
           type="button"
           onClick={() => setIsGenerateOpen(true)}
-          className="transition-all duration-200 hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500"
+          className="shadow-green-500 hover:shadow-blue-500 transition-all duration-200 hover:scale-105 hover:opacity-75 shadow-md"
         >
           <Calculator className="mr-2 h-4 w-4" /> Generiraj
         </Button>
         <Button
           type="button"
           onClick={() => setIsSelectOpen(true)}
-          className="transition-all duration-200 hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500"
+          className="shadow-green-500 hover:shadow-blue-500 transition-all duration-200 hover:scale-105 hover:opacity-75 shadow-md"
         >
           <List className="mr-2 h-4 w-4" /> Odaberi
         </Button>
@@ -195,12 +218,12 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
 
       {/* Enhanced Generate IBAN Dialog - 80% screen height */}
       <Dialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen}>
-        <DialogContent className="sm:max-w-[600px] h-[80vh] top-[10vh] translate-y-0 flex flex-col">
+        <DialogContent className="top-[10vh] flex h-[80vh] flex-col translate-y-0 sm:max-w-[600px]">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>Generiraj IBAN</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden flex flex-col gap-4 py-4">
-            <div className="space-y-2 flex-shrink-0">
+          <div className="flex flex-col gap-4 overflow-hidden py-4 flex-1">
+            <div className="flex-shrink-0 space-y-2">
               <label htmlFor="bank-select" className="text-sm font-medium">
                 Odaberi banku
               </label>
@@ -214,10 +237,10 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                       aria-expanded={openBankCombobox}
                       className="w-full justify-between pr-8"
                     >
-                      {selectedBank ?
-                        croatianBanks.find((bank) => bank.name === selectedBank)?.name :
-                        "Odaberi banku"
-                      }
+                      {selectedBank
+                        ? croatianBanks.find((bank) => bank.name === selectedBank)
+                          ?.name
+                        : "Odaberi banku"}
                       {openBankCombobox ? (
                         <ChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       ) : (
@@ -225,8 +248,8 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent 
-                    align="start" 
+                  <PopoverContent
+                    align="start"
                     className="w-[--radix-popover-trigger-width] p-0"
                     style={{ height: "70vh" }}
                   >
@@ -234,7 +257,7 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                       <CommandInput
                         placeholder="Pretraži banke..."
                         onValueChange={handleBankFilter}
-                        className="border-none focus:ring-0"
+                        className="focus:ring-0 border-none"
                       />
                       <CommandList className="max-h-none overflow-y-auto">
                         <CommandEmpty>Banka nije pronađena.</CommandEmpty>
@@ -242,7 +265,7 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                           {selectedBank && (
                             <CommandItem
                               onSelect={clearBankSelection}
-                              className="text-muted-foreground border-b border-border/50"
+                              className="border-b border-border/50 text-muted-foreground"
                             >
                               <X className="mr-2 h-4 w-4" />
                               <span>Poništi odabir</span>
@@ -252,21 +275,29 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                             <CommandItem
                               key={bank.code}
                               onSelect={() => {
-                                setSelectedBank(bank.name === selectedBank ? "" : bank.name)
+                                setSelectedBank(
+                                  bank.name === selectedBank ? "" : bank.name,
+                                )
                                 setOpenBankCombobox(false)
                               }}
                               className="transition-colors duration-150"
                             >
-                              <div className="flex items-center w-full">
+                              <div className="flex w-full items-center">
                                 <Check
                                   className={cn(
                                     "mr-2 h-4 w-4",
-                                    selectedBank === bank.name ? "opacity-100" : "opacity-0"
+                                    selectedBank === bank.name
+                                      ? "opacity-100"
+                                      : "opacity-0",
                                   )}
                                 />
                                 <div className="flex flex-col">
-                                  <span className="font-medium">{bank.name}</span>
-                                  <span className="text-xs text-muted-foreground">{bank.code}</span>
+                                  <span className="font-medium">
+                                    {bank.name}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {bank.code}
+                                  </span>
                                 </div>
                               </div>
                             </CommandItem>
@@ -281,7 +312,7 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="absolute right-8 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-muted"
+                    className="absolute right-8 top-1/2 h-6 w-6 -translate-y-1/2 p-0 hover:bg-muted transform"
                     onClick={clearBankSelection}
                   >
                     <X className="h-3 w-3" />
@@ -290,7 +321,7 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
               </div>
             </div>
 
-            <div className="space-y-2 flex-shrink-0">
+            <div className="flex-shrink-0 space-y-2">
               <label htmlFor="account-number" className="text-sm font-medium">
                 Broj računa
               </label>
@@ -303,17 +334,21 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                 maxLength={10}
                 className={cn(
                   "transition-colors duration-200",
-                  !isAccountNumberValid && accountNumber.length === 10 ? "border-red-500 focus:border-red-500" : ""
+                  !isAccountNumberValid && accountNumber.length === 10
+                    ? "border-red-500 focus:border-red-500"
+                    : "",
                 )}
               />
               {accountNumber.length > 0 && (
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>{accountNumber.length}/10 znamenki</span>
                   {accountNumber.length === 10 && (
-                    <span className={cn(
-                      "font-medium",
-                      isAccountNumberValid ? "text-green-600" : "text-red-600"
-                    )}>
+                    <span
+                      className={cn(
+                        "font-medium",
+                        isAccountNumberValid ? "text-green-600" : "text-red-600",
+                      )}
+                    >
                       {isAccountNumberValid ? "✓ Valjan" : "✗ Nevaljan"}
                     </span>
                   )}
@@ -352,12 +387,12 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
 
       {/* Enhanced Select IBAN Dialog - 80% screen height */}
       <Dialog open={isSelectOpen} onOpenChange={setIsSelectOpen}>
-        <DialogContent className="sm:max-w-[600px] h-[80vh] top-[10vh] translate-y-0 flex flex-col">
+        <DialogContent className="top-[10vh] flex h-[80vh] flex-col translate-y-0 sm:max-w-[600px]">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>Odaberi IBAN</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden flex flex-col gap-4 py-4">
-            <div className="space-y-2 flex-shrink-0">
+          <div className="flex flex-col gap-4 overflow-hidden py-4 flex-1">
+            <div className="flex-shrink-0 space-y-2">
               <label htmlFor="service-select" className="text-sm font-medium">
                 Odaberi instituciju
               </label>
@@ -372,7 +407,9 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                       className="w-full justify-between pr-8"
                     >
                       {selectedService
-                        ? serviceIBANMapping.find((service) => service.service === selectedService)?.service
+                        ? serviceIBANMapping.find(
+                          (service) => service.service === selectedService,
+                        )?.service
                         : "Odaberi instituciju"}
                       {openServiceCombobox ? (
                         <ChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -381,8 +418,8 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent 
-                    align="start" 
+                  <PopoverContent
+                    align="start"
                     className="w-[--radix-popover-trigger-width] p-0"
                     style={{ height: "70vh" }}
                   >
@@ -390,7 +427,7 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                       <CommandInput
                         placeholder="Pretraži institucije..."
                         onValueChange={handleServiceFilter}
-                        className="border-none focus:ring-0"
+                        className="focus:ring-0 border-none"
                       />
                       <CommandList className="max-h-none overflow-y-auto">
                         <CommandEmpty>Institucija nije pronađena.</CommandEmpty>
@@ -398,7 +435,7 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                           {selectedService && (
                             <CommandItem
                               onSelect={clearServiceSelection}
-                              className="text-muted-foreground border-b border-border/50"
+                              className="border-b border-border/50 text-muted-foreground"
                             >
                               <X className="mr-2 h-4 w-4" />
                               <span>Poništi odabir</span>
@@ -413,16 +450,22 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                               }}
                               className="transition-colors duration-150"
                             >
-                              <div className="flex items-center w-full">
+                              <div className="flex w-full items-center">
                                 <Check
                                   className={cn(
                                     "mr-2 h-4 w-4",
-                                    selectedService === service.service ? "opacity-100" : "opacity-0"
+                                    selectedService === service.service
+                                      ? "opacity-100"
+                                      : "opacity-0",
                                   )}
                                 />
                                 <div className="flex flex-col">
-                                  <span className="font-medium">{service.service}</span>
-                                  <span className="text-xs text-muted-foreground font-mono">{service.IBAN}</span>
+                                  <span className="font-medium">
+                                    {service.service}
+                                  </span>
+                                  <span className="font-mono text-xs text-muted-foreground">
+                                    {service.IBAN}
+                                  </span>
                                 </div>
                               </div>
                             </CommandItem>
@@ -437,7 +480,7 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="absolute right-8 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-muted"
+                    className="absolute right-8 top-1/2 h-6 w-6 -translate-y-1/2 p-0 hover:bg-muted transform"
                     onClick={clearServiceSelection}
                   >
                     <X className="h-3 w-3" />
@@ -445,7 +488,7 @@ export function IBANCalculator({ onIBANSelect }: IBANCalculatorProps) {
                 )}
               </div>
             </div>
-            
+
             <div className="flex-shrink-0 flex justify-center gap-2 pt-4">
               <Button
                 type="button"

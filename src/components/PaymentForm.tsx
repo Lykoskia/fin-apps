@@ -6,10 +6,31 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { submitPaymentForm } from "@/lib/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { LuPlay, LuDownload, LuShare2, LuLoader, LuTestTube, LuRotateCcw, LuFileText } from "react-icons/lu"
+import {
+  LuPlay,
+  LuDownload,
+  LuShare2,
+  LuLoader,
+  LuTestTube,
+  LuRotateCcw,
+  LuFileText,
+} from "react-icons/lu"
 import { useSearchParamsState } from "@/hooks/useSearchParamsState"
 import type { SubmitPaymentFormResult } from "@/lib/types"
 import Image from "next/image"
@@ -22,10 +43,19 @@ import { IBANCalculator } from "./IBANCalculator"
 import LoadingSpinner from "./LoadingSpinner"
 import { useToast } from "@/hooks/use-toast"
 import { EnhancedDataManager } from "./EnhancedDataManager"
-import FormLinkComponent from "./FormLinkComponent" // Keep this import
+import FormLinkComponent from "./FormLinkComponent"
 import BarcodeDecoder from "./BarcodeDecoder"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, XCircle, AlertCircle, Eye, EyeOff, ArrowRight, Lightbulb, Terminal } from "lucide-react"
+import {
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Lightbulb,
+  Terminal,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // Import the PDF generation utility
@@ -35,7 +65,7 @@ interface ValidationStep {
   description: string
   calculation?: string
   result?: string
-  type: 'info' | 'calculation' | 'success' | 'error'
+  type: "info" | "calculation" | "success" | "error"
   explanation?: string
   details?: ValidationStep[]
 }
@@ -44,71 +74,87 @@ interface ValidationResult {
   country: boolean
   checkDigits: boolean
   length: boolean
-  account: boolean
+  bankCode: boolean
+  accountNumber: boolean
   overall: boolean
   steps: ValidationStep[]
 }
 
-import { validateIBAN } from "@/lib/croatianPaymentData"
+import {
+  validateIBAN,
+  validateCroatianAccountNumber,
+  validateCroatianBankCode,
+} from "@/lib/croatianPaymentData"
 
-type EnhancedDataManagerCallback = (data: Partial<PaymentFormData>) => void;
+type EnhancedDataManagerCallback = (data: Partial<PaymentFormData>) => void
 
 const IBANStructureDisplay: React.FC<{ iban: string }> = ({ iban }) => {
-  const [showDetails, setShowDetails] = useState(true);
+  const [showDetails, setShowDetails] = useState(true)
 
-  const analyzeIBAN = useCallback((ibanValue: string): { country: string; check: string; bank: string; account: string; parts: ValidationStep[] } => {
-    const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
+  const analyzeIBAN = useCallback(
+    (
+      ibanValue: string,
+    ): {
+      country: string
+      check: string
+      bank: string
+      account: string
+      parts: ValidationStep[]
+    } => {
+      const cleanIban = ibanValue.replace(/\s/g, "").toUpperCase()
 
-    const parts: ValidationStep[] = [];
+      const parts: ValidationStep[] = []
 
-    if (cleanIban.length >= 2) {
-      parts.push({
-        description: "Kod zemlje",
-        result: cleanIban.substring(0, 2),
-        type: cleanIban.startsWith('HR') ? 'success' : 'error',
-        explanation: cleanIban.startsWith('HR') ? "✓ Hrvatska" : "✗ Nije HR"
-      });
-    }
+      if (cleanIban.length >= 2) {
+        parts.push({
+          description: "Kod zemlje",
+          result: cleanIban.substring(0, 2),
+          type: cleanIban.startsWith("HR") ? "success" : "error",
+          explanation: cleanIban.startsWith("HR") ? "✓ Hrvatska" : "✗ Nije HR",
+        })
+      }
 
-    if (cleanIban.length >= 4) {
-      parts.push({
-        description: "Kontrolne znamenke",
-        result: cleanIban.substring(2, 4),
-        type: cleanIban.length >= 4 ? 'info' : 'error',
-        explanation: "Služe za provjeru ispravnosti IBAN-a"
-      });
-    }
+      if (cleanIban.length >= 4) {
+        parts.push({
+          description: "Kontrolne znamenke",
+          result: cleanIban.substring(2, 4),
+          type: cleanIban.length >= 4 ? "info" : "error",
+          explanation: "Služe za provjeru ispravnosti IBAN-a",
+        })
+      }
 
-    if (cleanIban.length >= 11) {
-      parts.push({
-        description: "Kod banke",
-        result: cleanIban.substring(4, 11),
-        type: cleanIban.length >= 11 ? 'info' : 'error',
-        explanation: "7 znamenki - identifikacija banke"
-      });
-    }
+      if (cleanIban.length >= 11) {
+        parts.push({
+          description: "Kod banke",
+          result: cleanIban.substring(4, 11),
+          type: cleanIban.length >= 11 ? "info" : "error",
+          explanation: "7 znamenki - identifikacija banke",
+        })
+      }
 
-    if (cleanIban.length >= 21) {
-      parts.push({
-        description: "Broj računa",
-        result: cleanIban.substring(11, 21),
-        type: cleanIban.length === 21 ? 'info' : 'error',
-        explanation: "10 znamenki - broj računa"
-      });
-    }
+      if (cleanIban.length >= 21) {
+        parts.push({
+          description: "Broj računa",
+          result: cleanIban.substring(11, 21),
+          type: cleanIban.length === 21 ? "info" : "error",
+          explanation: "10 znamenki - broj računa",
+        })
+      }
 
-    return {
-      country: cleanIban.substring(0, 2),
-      check: cleanIban.substring(2, 4),
-      bank: cleanIban.substring(4, 11),
-      account: cleanIban.substring(11, 21),
-      parts
-    };
-  }, []);
+      return {
+        country: cleanIban.substring(0, 2),
+        check: cleanIban.substring(2, 4),
+        bank: cleanIban.substring(4, 11),
+        account: cleanIban.substring(11, 21),
+        parts,
+      }
+    },
+    [],
+  )
 
-  const { parts } = analyzeIBAN(iban);
+  const { parts } = analyzeIBAN(iban)
 
-  if (!iban || iban.length <= 2) return null;
+  if (!iban || iban.length <= 2) return null
 
   return (
     <Card className="w-full">
@@ -124,28 +170,48 @@ const IBANStructureDisplay: React.FC<{ iban: string }> = ({ iban }) => {
             onClick={() => setShowDetails(!showDetails)}
             className="h-6 w-6 p-0"
           >
-            {showDetails ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+            {showDetails ? (
+              <EyeOff className="h-3 w-3" />
+            ) : (
+              <Eye className="h-3 w-3" />
+            )}
           </Button>
         </div>
       </CardHeader>
       {showDetails && (
         <CardContent className="pt-0 space-y-3">
           {parts.map((part, index) => (
-            <div key={index} className="flex items-center justify-between p-2 rounded-md bg-muted/30 border">
+            <div
+              key={index}
+              className="flex items-center justify-between rounded-md border bg-muted/30 p-2"
+            >
               <div className="flex items-center gap-2">
-                {part.type === 'success' ? (
+                {part.type === "success" ? (
                   <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                ) : part.type === 'error' ? (
+                ) : part.type === "error" ? (
                   <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
                 ) : (
                   <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 )}
                 <div>
-                  <span className="text-sm font-medium text-foreground">{part.description}</span>
-                  <div className="text-xs text-muted-foreground">{part.explanation}</div>
+                  <span className="text-sm font-medium text-foreground">
+                    {part.description}
+                  </span>
+                  <div className="text-xs text-muted-foreground">
+                    {part.explanation}
+                  </div>
                 </div>
               </div>
-              <Badge variant={part.type === 'success' ? 'default' : part.type === 'error' ? 'destructive' : 'secondary'} className="font-mono text-xs">
+              <Badge
+                variant={
+                  part.type === "success"
+                    ? "default"
+                    : part.type === "error"
+                      ? "destructive"
+                      : "secondary"
+                }
+                className="font-mono text-xs"
+              >
                 {part.result}
               </Badge>
             </div>
@@ -153,79 +219,81 @@ const IBANStructureDisplay: React.FC<{ iban: string }> = ({ iban }) => {
         </CardContent>
       )}
     </Card>
-  );
-};
+  )
+}
 
 const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
-  const [showDetails, setShowDetails] = useState(false);
+  const [showDetails, setShowDetails] = useState(false)
 
   const calculateControlDigits = useCallback((ibanValue: string): ValidationStep[] => {
-    const steps: ValidationStep[] = [];
+    const steps: ValidationStep[] = []
 
     if (!ibanValue || ibanValue.length < 15) {
       steps.push({
         description: "Nedovoljno podataka za izračun",
-        type: 'error'
-      });
-      return steps;
+        type: "error",
+      })
+      return steps
     }
 
     try {
-      const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
-      const bankAndAccount = cleanIban.substring(4);
+      const cleanIban = ibanValue.replace(/\s/g, "").toUpperCase()
+      const bankAndAccount = cleanIban.substring(4)
 
       // Step 1: Rearrange - move HR to end and replace with 1727
-      const rearranged = bankAndAccount + "1727";
+      const rearranged = bankAndAccount + "1727"
       steps.push({
         description: "Presložavanje",
         calculation: `${bankAndAccount} + 1727 (HR=1727)`,
         result: rearranged,
-        type: 'calculation',
-        explanation: "Premjestimo HR na kraj i zamijenimo s 1727"
-      });
+        type: "calculation",
+        explanation: "Premjestimo HR na kraj i zamijenimo s 1727",
+      })
 
       // Step 2: Calculate mod 97
-      const numericString = rearranged;
-      let remainder = 0;
+      const numericString = rearranged
+      let remainder = 0
 
       // Process the number in chunks to avoid overflow
       for (let i = 0; i < numericString.length; i++) {
-        remainder = (remainder * 10 + parseInt(numericString[i])) % 97;
+        remainder = (remainder * 10 + parseInt(numericString[i])) % 97
       }
 
       steps.push({
         description: "Izračun ostatka",
         calculation: `${numericString} mod 97`,
         result: remainder.toString(),
-        type: 'calculation',
-        explanation: "Izračunavamo ostatak dijeljenja s 97"
-      });
+        type: "calculation",
+        explanation: "Izračunavamo ostatak dijeljenja s 97",
+      })
 
       // Step 3: Calculate control digits
-      const controlDigits = 98 - remainder;
-      const formattedControlDigits = controlDigits.toString().padStart(2, '0');
+      const controlDigits = 98 - remainder
+      const formattedControlDigits = controlDigits.toString().padStart(2, "0")
 
       steps.push({
         description: "Kontrolne znamenke",
         calculation: `98 - ${remainder}`,
         result: formattedControlDigits,
-        type: controlDigits === parseInt(cleanIban.substring(2, 4)) ? 'success' : 'error',
-        explanation: `Trebaju biti: ${formattedControlDigits}, u IBAN-u: ${cleanIban.substring(2, 4)}`
-      });
-
+        type:
+          controlDigits === parseInt(cleanIban.substring(2, 4))
+            ? "success"
+            : "error",
+        explanation: `Trebaju biti: ${formattedControlDigits}, u IBAN-u: ${cleanIban.substring(2, 4)}`,
+      })
     } catch {
       steps.push({
         description: "Greška u izračunu",
-        type: 'error',
-        explanation: "Nije moguće izračunati kontrolne znamenke"
-      });
+        type: "error",
+        explanation: "Nije moguće izračunati kontrolne znamenke",
+      })
     }
 
-    return steps;
-  }, []);
+    return steps
+  }, [])
 
-  const steps = calculateControlDigits(iban);
-  const hasValidData = iban && iban.length >= 15;
+  const steps = calculateControlDigits(iban)
+  const hasValidData = iban && iban.length >= 15
 
   return (
     <Card className="w-full">
@@ -242,39 +310,53 @@ const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
             className="h-6 w-6 p-0"
             disabled={!hasValidData}
           >
-            {showDetails ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+            {showDetails ? (
+              <EyeOff className="h-3 w-3" />
+            ) : (
+              <Eye className="h-3 w-3" />
+            )}
           </Button>
         </div>
       </CardHeader>
       {showDetails && hasValidData && (
         <CardContent className="pt-0 space-y-3">
           {steps.map((step, index) => (
-            <div key={index} className="p-3 rounded-md bg-muted/30 border">
+            <div key={index} className="rounded-md border bg-muted/30 p-3">
               <div className="flex items-start gap-3">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  {step.type === 'success' ? (
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                  ) : step.type === 'error' ? (
-                    <XCircle className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  {step.type === "success" ? (
+                    <CheckCircle className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
+                  ) : step.type === "error" ? (
+                    <XCircle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
                   ) : (
-                    <ArrowRight className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                    <ArrowRight className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
                   )}
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-foreground">{step.description}</div>
+                    <div className="text-sm font-medium text-foreground">
+                      {step.description}
+                    </div>
                     {step.calculation && (
-                      <div className="text-xs font-mono text-muted-foreground bg-muted/50 px-2 py-1 rounded mt-1 break-all">
+                      <div className="mt-1 break-all rounded bg-muted/50 px-2 py-1 font-mono text-xs text-muted-foreground">
                         {step.calculation}
                       </div>
                     )}
                     {step.explanation && (
-                      <div className="text-xs text-muted-foreground mt-1">{step.explanation}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {step.explanation}
+                      </div>
                     )}
                   </div>
                 </div>
                 {step.result && (
                   <Badge
-                    variant={step.type === 'success' ? 'default' : step.type === 'error' ? 'destructive' : 'secondary'}
-                    className="font-mono text-xs flex-shrink-0"
+                    variant={
+                      step.type === "success"
+                        ? "default"
+                        : step.type === "error"
+                          ? "destructive"
+                          : "secondary"
+                    }
+                    className="flex-shrink-0 font-mono text-xs"
                   >
                     {step.result}
                   </Badge>
@@ -285,111 +367,204 @@ const IBANControlDigitCalculator: React.FC<{ iban: string }> = ({ iban }) => {
         </CardContent>
       )}
     </Card>
-  );
-};
+  )
+}
 
 const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
   const validateIBANDetailed = useCallback((ibanValue: string): ValidationResult => {
-    const steps: ValidationStep[] = [];
+    const steps: ValidationStep[] = []
 
     if (!ibanValue) {
-      return { country: false, checkDigits: false, length: false, account: false, overall: false, steps };
-    }
-
-    const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
-
-    // Country check
-    const country = cleanIban.startsWith('HR');
-    steps.push({
-      description: "Kod zemlje",
-      result: cleanIban.substring(0, 2),
-      type: country ? 'success' : 'error',
-      explanation: country ? "✓ Hrvatska (HR)" : "✗ Mora počinjati s HR"
-    });
-
-    // Length check
-    const length = cleanIban.length === 21;
-    steps.push({
-      description: "Duljina",
-      result: `${cleanIban.length}/21`,
-      type: length ? 'success' : 'error',
-      explanation: length ? "✓ Ispravna duljina" : `✗ Mora imati točno 21 znak (trenutno ${cleanIban.length})`
-    });
-
-    // Use the original validateIBAN function for mathematical validation
-    let checkDigits = false;
-    if (country && length) {
-      try {
-        checkDigits = validateIBAN(cleanIban);
-        steps.push({
-          description: "Kontrolne znamenke",
-          result: checkDigits ? "Ispravne" : "Neispravne",
-          type: checkDigits ? 'success' : 'error',
-          explanation: checkDigits ? "✓ Matematički ispravne" : "✗ Pogrešan kontrolni broj"
-        });
-      } catch {
-        checkDigits = false;
-        steps.push({
-          description: "Kontrolne znamenke",
-          result: "Greška",
-          type: 'error',
-          explanation: "✗ Greška pri provjeri"
-        });
+      return {
+        country: false,
+        checkDigits: false,
+        length: false,
+        bankCode: false,
+        accountNumber: false,
+        overall: false,
+        steps,
       }
     }
 
-    // Account number check (simple format check)
-    let account = false;
-    if (length) {
-      const accountNumber = cleanIban.substring(11, 21);
-      account = /^\d{10}$/.test(accountNumber);
+    const cleanIban = ibanValue.replace(/\s/g, "").toUpperCase()
+
+    // 1. Country check
+    const country = cleanIban.startsWith("HR")
+    steps.push({
+      description: "Kod zemlje (HR)",
+      result: cleanIban.substring(0, 2),
+      type: country ? "success" : "error",
+      explanation: country ? "✓ Hrvatska (HR)" : "✗ Mora počinjati s HR",
+    })
+
+    // 2. Length check
+    const length = cleanIban.length === 21
+    steps.push({
+      description: "Duljina IBAN-a",
+      result: `${cleanIban.length}/21`,
+      type: length ? "success" : "error",
+      explanation: length
+        ? "✓ Ispravna duljina (21 znak)"
+        : `✗ Mora imati točno 21 znak (trenutno ${cleanIban.length})`,
+    })
+
+    // 3. IBAN Check Digits (overall mathematical validation)
+    let checkDigits = false
+    if (country && length) {
+      try {
+        checkDigits = validateIBAN(cleanIban)
+        steps.push({
+          description: "IBAN kontrolne znamenke",
+          result: checkDigits ? "Ispravne" : "Neispravne",
+          type: checkDigits ? "success" : "error",
+          explanation: checkDigits
+            ? "✓ Matematički ispravne (ISO 7064 Mod 97-10)"
+            : "✗ Pogrešan kontrolni broj prema ISO 7064",
+        })
+      } catch {
+        checkDigits = false
+        steps.push({
+          description: "IBAN kontrolne znamenke",
+          result: "Greška",
+          type: "error",
+          explanation: "✗ Greška pri provjeri IBAN kontrolnih znamenki",
+        })
+      }
+    } else {
       steps.push({
-        description: "Broj računa",
-        result: accountNumber,
-        type: account ? 'success' : 'error',
-        explanation: account ? "✓ Ispravan format" : "✗ Mora biti 10 znamenki"
-      });
+        description: "IBAN kontrolne znamenke",
+        result: "N/A",
+        type: "info",
+        explanation: "Provjera nakon ispravke koda zemlje i duljine",
+      })
     }
 
-    const overall = country && length && checkDigits && account;
-    return { country, checkDigits, length, account, overall, steps };
-  }, []);
+    // 4. Bank Code Validation (7 digits, with control digit)
+    let bankCodeValid = false
+    const bankCode = cleanIban.substring(4, 11)
+    if (length && country && bankCode.length === 7) {
+      bankCodeValid = validateCroatianBankCode(bankCode)
+      steps.push({
+        description: "Kod banke (7 znamenki)",
+        result: bankCode,
+        type: bankCodeValid ? "success" : "error",
+        explanation: bankCodeValid
+          ? "✓ Ispravan format i kontrolna znamenka"
+          : "✗ Neispravan kod banke ili kontrolna znamenka",
+      })
+    } else if (length && country) {
+      steps.push({
+        description: "Kod banke (7 znamenki)",
+        result: bankCode.length === 0 ? "N/A" : bankCode,
+        type: "error",
+        explanation: `✗ Mora biti točno 7 znamenki (trenutno ${bankCode.length})`,
+      })
+    } else {
+      steps.push({
+        description: "Kod banke (7 znamenki)",
+        result: "N/A",
+        type: "info",
+        explanation: "Provjera nakon ispravke IBAN duljine i koda zemlje",
+      })
+    }
 
-  const validationResults = validateIBANDetailed(iban);
+    // 5. Account Number Validation (10 digits, with control digit)
+    let accountNumberValid = false
+    const accountNumber = cleanIban.substring(11, 21)
+    if (length && country && accountNumber.length === 10) {
+      accountNumberValid = validateCroatianAccountNumber(accountNumber)
+      steps.push({
+        description: "Broj računa (10 znamenki)",
+        result: accountNumber,
+        type: accountNumberValid ? "success" : "error",
+        explanation: accountNumberValid
+          ? "✓ Ispravan format i kontrolna znamenka"
+          : "✗ Neispravan broj računa ili kontrolna znamenka",
+      })
+    } else if (length && country) {
+      steps.push({
+        description: "Broj računa (10 znamenki)",
+        result: accountNumber.length === 0 ? "N/A" : accountNumber,
+        type: "error",
+        explanation: `✗ Mora biti točno 10 znamenki (trenutno ${accountNumber.length})`,
+      })
+    } else {
+      steps.push({
+        description: "Broj računa (10 znamenki)",
+        result: "N/A",
+        type: "info",
+        explanation: "Provjera nakon ispravke IBAN duljine i koda zemlje",
+      })
+    }
 
-  if (!iban || iban.length <= 2) return null;
+    const overall = country && length && checkDigits && bankCodeValid && accountNumberValid
+    return {
+      country,
+      checkDigits,
+      length,
+      bankCode: bankCodeValid,
+      accountNumber: accountNumberValid,
+      overall,
+      steps,
+    }
+  }, [])
+
+  const validationResults = validateIBANDetailed(iban)
+
+  if (!iban || iban.length <= 2) return null
 
   return (
     <Card className="w-full">
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-sm">
           {validationResults.overall ? (
             <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
           ) : (
             <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
           )}
           IBAN validacija
-          <Badge variant={validationResults.overall ? 'default' : 'destructive'} className="ml-auto text-xs">
+          <Badge
+            variant={validationResults.overall ? "default" : "destructive"}
+            className="ml-auto text-xs"
+          >
             {validationResults.overall ? "Valjan" : "Nevaljan"}
           </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0 space-y-2">
+      <CardContent className="space-y-2 pt-0">
         {validationResults.steps.map((step, index) => (
-          <div key={index} className="flex items-center justify-between p-2 rounded-md bg-muted/30 border">
+          <div
+            key={index}
+            className="flex items-center justify-between rounded-md border bg-muted/30 p-2"
+          >
             <div className="flex items-center gap-2">
-              {step.type === 'success' ? (
+              {step.type === "success" ? (
                 <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-              ) : (
+              ) : step.type === "error" ? (
                 <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               )}
               <div>
-                <span className="text-sm font-medium text-foreground">{step.description}</span>
-                <div className="text-xs text-muted-foreground">{step.explanation}</div>
+                <span className="text-sm font-medium text-foreground">
+                  {step.description}
+                </span>
+                <div className="text-xs text-muted-foreground">
+                  {step.explanation}
+                </div>
               </div>
             </div>
             {step.result && (
-              <Badge variant={step.type === 'success' ? 'default' : 'destructive'} className="font-mono text-xs">
+              <Badge
+                variant={
+                  step.type === "success"
+                    ? "default"
+                    : step.type === "error"
+                      ? "destructive"
+                      : "secondary"
+                }
+                className="font-mono text-xs"
+              >
                 {step.result}
               </Badge>
             )}
@@ -397,54 +572,96 @@ const IBANValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
         ))}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
-  const validateBankAccount = useCallback((ibanValue: string): ValidationResult => {
-    const steps: ValidationStep[] = [];
-    let checkDigits = false, account = false;
+const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({
+  iban,
+}) => {
+  const validateBankAccount = useCallback(
+    (ibanValue: string): ValidationResult => {
+      const steps: ValidationStep[] = []
+      let bankCodeValid = false,
+        accountNumberValid = false
 
-    if (!ibanValue || ibanValue.length < 11) {
-      return { country: false, checkDigits: false, length: false, account: false, overall: false, steps };
-    }
+      if (!ibanValue || ibanValue.length < 11) {
+        return {
+          country: false,
+          checkDigits: false,
+          length: false,
+          bankCode: false,
+          accountNumber: false,
+          overall: false,
+          steps,
+        }
+      }
 
-    const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
-    const bankCode = cleanIban.substring(4, 11);
-    const accountNumber = cleanIban.substring(11, 21);
+      const cleanIban = ibanValue.replace(/\s/g, "").toUpperCase()
+      const bankCode = cleanIban.substring(4, 11)
+      const accountNumber = cleanIban.substring(11, 21)
 
-    // Bank code validation
-    const validBankCodePattern = /^\d{7}$/;
-    checkDigits = validBankCodePattern.test(bankCode);
-    steps.push({
-      description: "Kod banke",
-      result: bankCode,
-      type: checkDigits ? 'success' : 'error',
-      explanation: checkDigits ? "✓ 7 znamenki" : "✗ Mora biti 7 znamenki"
-    });
+      // Bank code validation (7 digits, with control digit)
+      if (bankCode.length === 7) {
+        bankCodeValid = validateCroatianBankCode(bankCode)
+        steps.push({
+          description: "Kod banke",
+          result: bankCode,
+          type: bankCodeValid ? "success" : "error",
+          explanation: bankCodeValid
+            ? "✓ 7 znamenki i ispravna kontrolna znamenka"
+            : "✗ Neispravan kod banke ili kontrolna znamenka",
+        })
+      } else {
+        steps.push({
+          description: "Kod banke",
+          result: bankCode,
+          type: "error",
+          explanation: `✗ Mora biti 7 znamenki (trenutno ${bankCode.length})`,
+        })
+      }
 
-    // Account number validation  
-    const validAccountPattern = /^\d{10}$/;
-    account = validAccountPattern.test(accountNumber);
-    steps.push({
-      description: "Broj računa",
-      result: accountNumber || "N/A",
-      type: account ? 'success' : 'error',
-      explanation: account ? "✓ 10 znamenki" : "✗ Mora biti 10 znamenki"
-    });
+      // Account number validation (10 digits, with control digit)
+      if (accountNumber.length === 10) {
+        accountNumberValid = validateCroatianAccountNumber(accountNumber)
+        steps.push({
+          description: "Broj računa",
+          result: accountNumber,
+          type: accountNumberValid ? "success" : "error",
+          explanation: accountNumberValid
+            ? "✓ 10 znamenki i ispravna kontrolna znamenka"
+            : "✗ Neispravan broj računa ili kontrolna znamenka",
+        })
+      } else {
+        steps.push({
+          description: "Broj računa",
+          result: accountNumber,
+          type: "error",
+          explanation: `✗ Mora biti 10 znamenki (trenutno ${accountNumber.length})`,
+        })
+      }
 
-    const overall = checkDigits && account;
-    return { country: false, checkDigits, length: false, account, overall, steps };
-  }, []);
+      const overall = bankCodeValid && accountNumberValid
+      return {
+        country: false,
+        checkDigits: false,
+        length: false,
+        bankCode: bankCodeValid,
+        accountNumber: accountNumberValid,
+        overall,
+        steps,
+      }
+    },
+    [],
+  )
 
-  const validationResults = validateBankAccount(iban);
+  const validationResults = validateBankAccount(iban)
 
-  if (!iban || iban.length < 11) return null;
+  if (!iban || iban.length < 11) return null
 
   return (
     <Card className="w-full">
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-sm">
           {validationResults.overall ? (
             <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
           ) : (
@@ -453,25 +670,37 @@ const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
           Analiza banke i računa
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0 space-y-2">
+      <CardContent className="space-y-2 pt-0">
         {validationResults.steps.map((step, index) => (
-          <div key={index} className="flex items-center justify-between p-2 rounded-md bg-muted/30 border">
+          <div
+            key={index}
+            className="flex items-center justify-between rounded-md border bg-muted/30 p-2"
+          >
             <div className="flex items-center gap-2">
-              {step.type === 'success' ? (
+              {step.type === "success" ? (
                 <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
               ) : (
                 <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
               )}
-              <span className="text-sm font-medium text-foreground">{step.description}</span>
-              <span className={cn(
-                "text-xs font-medium",
-                step.type === 'success' ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-              )}>
+              <span className="text-sm font-medium text-foreground">
+                {step.description}
+              </span>
+              <span
+                className={cn(
+                  "text-xs font-medium",
+                  step.type === "success"
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400",
+                )}
+              >
                 {step.explanation}
               </span>
             </div>
             {step.result && step.result !== "N/A" && (
-              <Badge variant={step.type === 'success' ? 'default' : 'destructive'} className="font-mono text-xs">
+              <Badge
+                variant={step.type === "success" ? "default" : "destructive"}
+                className="font-mono text-xs"
+              >
                 {step.result}
               </Badge>
             )}
@@ -479,51 +708,72 @@ const BankAccountValidationDisplay: React.FC<{ iban: string }> = ({ iban }) => {
         ))}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
 // Overall validation summary component
 const ValidationSummaryCard: React.FC<{ iban: string }> = ({ iban }) => {
   const validateIBANDetailed = useCallback((ibanValue: string): ValidationResult => {
-    const steps: ValidationStep[] = [];
+    const steps: ValidationStep[] = []
 
     if (!ibanValue) {
-      return { country: false, checkDigits: false, length: false, account: false, overall: false, steps };
+      return {
+        country: false,
+        checkDigits: false,
+        length: false,
+        bankCode: false,
+        accountNumber: false,
+        overall: false,
+        steps,
+      }
     }
 
-    const cleanIban = ibanValue.replace(/\s/g, '').toUpperCase();
+    const cleanIban = ibanValue.replace(/\s/g, "").toUpperCase()
 
-    const country = cleanIban.startsWith('HR');
-    const length = cleanIban.length === 21;
+    const country = cleanIban.startsWith("HR")
+    const length = cleanIban.length === 21
 
-    let checkDigits = false;
-    let account = false;
+    let checkDigits = false
+    let bankCodeValid = false
+    let accountNumberValid = false
 
     if (country && length) {
       try {
         // Use the original validateIBAN function
-        checkDigits = validateIBAN(cleanIban);
+        checkDigits = validateIBAN(cleanIban)
 
-        const accountNumber = cleanIban.substring(11, 21);
-        account = /^\d{10}$/.test(accountNumber);
+        const bankCode = cleanIban.substring(4, 11)
+        const accountNumber = cleanIban.substring(11, 21)
+
+        bankCodeValid = validateCroatianBankCode(bankCode)
+        accountNumberValid = validateCroatianAccountNumber(accountNumber)
       } catch {
-        checkDigits = false;
-        account = false;
+        checkDigits = false
+        bankCodeValid = false
+        accountNumberValid = false
       }
     }
 
-    const overall = country && length && checkDigits && account;
-    return { country, checkDigits, length, account, overall, steps };
-  }, []);
+    const overall = country && length && checkDigits && bankCodeValid && accountNumberValid
+    return {
+      country,
+      checkDigits,
+      length,
+      bankCode: bankCodeValid,
+      accountNumber: accountNumberValid,
+      overall,
+      steps,
+    }
+  }, [])
 
-  const validationResults = validateIBANDetailed(iban);
+  const validationResults = validateIBANDetailed(iban)
 
-  if (!iban || iban.length <= 2) return null;
+  if (!iban || iban.length <= 2) return null
 
   return (
     <Card className="w-full border-2 border-dashed border-muted-foreground/20">
       <CardContent className="pt-6">
-        <div className="text-center space-y-4">
+        <div className="space-y-4 text-center">
           <div className="flex justify-center">
             {validationResults.overall ? (
               <CheckCircle className="h-12 w-12 text-green-600 dark:text-green-400" />
@@ -532,35 +782,42 @@ const ValidationSummaryCard: React.FC<{ iban: string }> = ({ iban }) => {
             )}
           </div>
           <div>
-            <h3 className="font-semibold text-lg">
+            <h3 className="text-lg font-semibold">
               {validationResults.overall ? "IBAN je valjan ✓" : "IBAN nije valjan ✗"}
             </h3>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="mt-1 text-sm text-muted-foreground">
               {validationResults.overall
                 ? "Svi provjeri su prošli uspješno"
-                : "Jedan ili više provjera nije prošao uspješno"
-              }
+                : "Jedan ili više provjera nije prošao uspješno"}
             </p>
           </div>
 
           {/* Quick status indicators */}
-          <div className="grid grid-cols-2 gap-2 pt-4 border-t">
+          <div className="grid grid-cols-2 gap-2 border-t pt-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-foreground">Kontrolne znamenke</span>
-              <span className={cn(
-                "text-xs font-medium",
-                validationResults.checkDigits ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-              )}>
+              <span
+                className={cn(
+                  "text-xs font-medium",
+                  validationResults.checkDigits
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400",
+                )}
+              >
                 {validationResults.checkDigits ? "✓ Valjane" : "✗ Nevaljane"}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-foreground">Broj računa</span>
-              <span className={cn(
-                "text-xs font-medium",
-                validationResults.account ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-              )}>
-                {validationResults.account ? "✓ Valjan" : "✗ Nevaljan"}
+              <span
+                className={cn(
+                  "text-xs font-medium",
+                  validationResults.accountNumber
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400",
+                )}
+              >
+                {validationResults.accountNumber ? "✓ Valjan" : "✗ Nevaljan"}
               </span>
             </div>
           </div>
@@ -572,114 +829,117 @@ const ValidationSummaryCard: React.FC<{ iban: string }> = ({ iban }) => {
 
 // Custom Reference Number Input Component
 const ReferenceNumberInput: React.FC<{
-  value: string;
-  onChange: (value: string) => void;
-  onBlur: () => void;
-  model: string;
+  value: string
+  onChange: (value: string) => void
+  onBlur: () => void
+  model: string
 }> = ({ value, onChange, onBlur, model }) => {
-  const [internalError, setInternalError] = useState<string | null>(null); // Renamed from 'error' to avoid confusion with form errors
+  const [internalError, setInternalError] = useState<string | null>(null) // Renamed from 'error' to avoid confusion with form errors
 
   // Clear reference when model is 99
   useEffect(() => {
     if (model === "99" && value) {
-      onChange("");
+      onChange("")
     }
-  }, [model, onChange, value]);
+  }, [model, onChange, value])
 
   // Client-side validation function - provides immediate feedback
   const validateReferenceClient = useCallback((refValue: string): boolean => {
     if (!refValue || refValue.trim() === "") {
-      setInternalError(null);
-      return true;
+      setInternalError(null)
+      return true
     }
 
-    const trimmedValue = refValue.trim();
+    const trimmedValue = refValue.trim()
 
     // Cannot start with a hyphen
     if (trimmedValue.startsWith("-")) {
-      setInternalError("Poziv na broj ne može početi crticom.");
-      return false;
+      setInternalError("Poziv na broj ne može početi crticom.")
+      return false
     }
 
     // Check if it contains only digits and hyphens, and no consecutive hyphens
     if (!/^[0-9-]+$/.test(trimmedValue) || trimmedValue.includes("--")) {
-      setInternalError("Poziv na broj može sadržavati samo znamenke i ne smije imati dvije uzastopne crte.");
-      return false;
+      setInternalError(
+        "Poziv na broj može sadržavati samo znamenke i ne smije imati dvije uzastopne crte.",
+      )
+      return false
     }
 
-    const segments = trimmedValue.split("-");
+    const segments = trimmedValue.split("-")
 
     // Maximum 4 segments (3 hyphens)
     if (segments.length > 4) {
-      setInternalError("Dozvoljeno je najviše 3 crte.");
-      return false;
+      setInternalError("Dozvoljeno je najviše 3 crte.")
+      return false
     }
 
     // Each segment must have at most 11 digits
     for (const segment of segments) {
       if (segment.length > 11) {
-        setInternalError("Svaki segment može imati najviše 11 znamenki.");
-        return false;
+        setInternalError("Svaki segment može imati najviše 11 znamenki.")
+        return false
       }
     }
 
-    setInternalError(null);
-    return true;
-  }, []);
+    setInternalError(null)
+    return true
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
+    const newValue = e.target.value
 
     // Sanitize: allow only digits and hyphens, and prevent consecutive hyphens
     // This is the most critical part for immediate prevention
-    let sanitizedValue = "";
+    let sanitizedValue = ""
     for (let i = 0; i < newValue.length; i++) {
-      const char = newValue[i];
-      if (char === '-') {
+      const char = newValue[i]
+      if (char === "-") {
         // Prevent starting with a hyphen
         if (i === 0) {
-          continue; // Skip the hyphen if it's the first character
+          continue // Skip the hyphen if it's the first character
         }
         // Prevent consecutive hyphens
-        if (sanitizedValue.length > 0 && sanitizedValue[sanitizedValue.length - 1] === '-') {
-          continue; // Skip the hyphen if the previous char was also a hyphen
+        if (sanitizedValue.length > 0 && sanitizedValue[sanitizedValue.length - 1] === "-")
+        {
+          continue // Skip the hyphen if the previous char was also a hyphen
         }
       }
       // Allow digits
       if (/[0-9]/.test(char)) {
-        sanitizedValue += char;
-      } else if (char === '-') {
+        sanitizedValue += char
+      } else if (char === "-") {
         // Allow hyphen if it passed the previous checks
-        sanitizedValue += char;
+        sanitizedValue += char
       }
     }
 
     // Enforce max length of 22 including hyphens
-    sanitizedValue = sanitizedValue.substring(0, 22);
+    sanitizedValue = sanitizedValue.substring(0, 22)
 
-    onChange(sanitizedValue);
-    validateReferenceClient(sanitizedValue); // Validate sanitized value
-  };
+    onChange(sanitizedValue)
+    validateReferenceClient(sanitizedValue) // Validate sanitized value
+  }
 
   const handleBlur = () => {
-    let finalValue = value.trim();
+    let finalValue = value.trim()
 
     // Ensure it doesn't end with a hyphen on blur
     if (finalValue.endsWith("-")) {
-      finalValue = finalValue.slice(0, -1);
-      onChange(finalValue); // Update form state with trimmed value
+      finalValue = finalValue.slice(0, -1)
+      onChange(finalValue) // Update form state with trimmed value
     }
 
     // Re-validate the final value to catch the "cannot end with hyphen" rule
-    if (finalValue.endsWith("-")) { // This should ideally not happen if slice(-1) worked, but as a safeguard
-      setInternalError("Poziv na broj ne može završiti crticom.");
+    if (finalValue.endsWith("-")) {
+      // This should ideally not happen if slice(-1) worked, but as a safeguard
+      setInternalError("Poziv na broj ne može završiti crticom.")
     } else {
-      validateReferenceClient(finalValue); // Final validation for consistency
+      validateReferenceClient(finalValue) // Final validation for consistency
     }
 
-    onBlur(); // Call react-hook-form's onBlur
-  };
-
+    onBlur() // Call react-hook-form's onBlur
+  }
 
   return (
     <div>
@@ -693,11 +953,11 @@ const ReferenceNumberInput: React.FC<{
         maxLength={22} // MaxLength is a good client-side hint, but our handleChange enforces it better
       />
       {internalError && (
-        <p className="text-sm text-red-500 mt-1">{internalError}</p>
+        <p className="mt-1 text-sm text-red-500">{internalError}</p>
       )}
     </div>
-  );
-};
+  )
+}
 
 const formSchema = paymentFormSchema
 
@@ -705,7 +965,7 @@ export default function PaymentForm() {
   const [barcodeUrl, setBarcodeUrl] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
   const [isPdfGenerating, setIsPdfGenerating] = useState(false)
-  const [currentFormUrl, setCurrentFormUrl] = useState<string>(''); // NEW: State for form URL
+  const [currentFormUrl, setCurrentFormUrl] = useState<string>("") // NEW: State for form URL
   const { searchParams, setSearchParams } = useSearchParamsState()
 
   const { toast } = useToast()
@@ -732,104 +992,116 @@ export default function PaymentForm() {
 
   // NEW: Callback to receive the form URL from FormLinkComponent
   const handleFormUrlChange = useCallback((url: string) => {
-    setCurrentFormUrl(url);
-  }, []);
+    setCurrentFormUrl(url)
+  }, [])
 
   // Clear reference when model is 99
   useEffect(() => {
-    const model = form.watch("model");
-    const reference = form.watch("reference");
+    const model = form.watch("model")
+    const reference = form.watch("reference")
 
     if (model === "99" && reference) {
-      form.setValue("reference", "");
+      form.setValue("reference", "")
     }
-  }, [form.watch("model"), form]);
+  }, [form.watch("model"), form])
 
   useEffect(() => {
     const formData: { [key: string]: string } = {}
     searchParams.forEach((value: string, key: string | number) => {
-      if (key === 'amount' && value) {
-        formData[key] = decodeURIComponent(value);
+      if (key === "amount" && value) {
+        formData[key] = decodeURIComponent(value)
       } else {
-        formData[key] = value;
+        formData[key] = value
       }
     })
     if (Object.keys(formData).length > 0) {
       form.reset({
         ...form.getValues(),
-        ...formData
+        ...formData,
       })
     }
   }, [searchParams, form])
 
   useEffect(() => {
     const savedData = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('senderData='))
-      ?.split('=')[1];
+      .split("; ")
+      .find((row) => row.startsWith("senderData="))
+      ?.split("=")[1]
 
     if (savedData) {
       try {
-        const parsedData = JSON.parse(decodeURIComponent(savedData));
+        const parsedData = JSON.parse(decodeURIComponent(savedData))
         form.reset({
           ...form.getValues(),
-          ...parsedData
-        });
+          ...parsedData,
+        })
       } catch (e) {
-        console.error('Error parsing saved sender data:', e);
+        console.error("Error parsing saved sender data:", e)
       }
     }
-  }, [form]); // Added form to dependency array
+  }, [form]) // Added form to dependency array
 
   // Handler for barcode decoding - properly typed
-  const handleBarcodeDecoded = useCallback((decodedData: Partial<PaymentFormData>) => {
-    console.log('Decoded barcode data:', decodedData); // For debugging
+  const handleBarcodeDecoded = useCallback(
+    (decodedData: Partial<PaymentFormData>) => {
+      console.log("Decoded barcode data:", decodedData) // For debugging
 
-    // Update the form with decoded data
-    form.reset({
-      ...form.getValues(), // Keep any existing values
-      ...decodedData,      // Override with decoded data
-    });
+      // Update the form with decoded data
+      form.reset({
+        ...form.getValues(), // Keep any existing values
+        ...decodedData, // Override with decoded data
+      })
 
-    // Clear existing barcode since we're loading new data
-    setBarcodeUrl("");
+      // Clear existing barcode since we're loading new data
+      setBarcodeUrl("")
 
-    // Update URL params to reflect the new form state
-    const newParams = new URLSearchParams();
-    Object.entries(decodedData).forEach(([key, value]) => {
-      if (value && value !== "") {
-        newParams.set(key, String(value)); // Ensure value is string for URLSearchParams
-      }
-    });
-    setSearchParams(newParams);
+      // Update URL params to reflect the new form state
+      const newParams = new URLSearchParams()
+      Object.entries(decodedData).forEach(([key, value]) => {
+        if (value && value !== "") {
+          newParams.set(key, String(value)) // Ensure value is string for URLSearchParams
+        }
+      })
+      setSearchParams(newParams)
 
-    // Show success message
-    toast({
-      title: "Barkod uspješno učitan",
-      description: "Podaci su uneseni u obrazac. Možete ih sada mijenjati po potrebi.",
-    });
-  }, [form, setSearchParams, toast]);
+      // Show success message
+      toast({
+        title: "Barkod uspješno učitan",
+        description: "Podaci su uneseni u obrazac. Možete ih sada mijenjati po potrebi.",
+      })
+    },
+    [form, setSearchParams, toast],
+  )
 
   // Properly typed handlers for EnhancedDataManager
-  const handleSenderDataLoad: EnhancedDataManagerCallback = useCallback((data) => {
-    form.setValue("senderName", data.senderName || "")
-    form.setValue("senderStreet", data.senderStreet || "")
-    form.setValue("senderPostcode", data.senderPostcode || "")
-    form.setValue("senderCity", data.senderCity || "")
-  }, [form]);
+  const handleSenderDataLoad: EnhancedDataManagerCallback = useCallback(
+    (data) => {
+      form.setValue("senderName", data.senderName || "")
+      form.setValue("senderStreet", data.senderStreet || "")
+      form.setValue("senderPostcode", data.senderPostcode || "")
+      form.setValue("senderCity", data.senderCity || "")
+    },
+    [form],
+  )
 
-  const handleReceiverDataLoad: EnhancedDataManagerCallback = useCallback((data) => {
-    form.setValue("receiverName", data.receiverName || "")
-    form.setValue("receiverStreet", data.receiverStreet || "")
-    form.setValue("receiverPostcode", data.receiverPostcode || "")
-    form.setValue("receiverCity", data.receiverCity || "")
-    form.setValue("iban", data.iban || "HR")
-  }, [form]);
+  const handleReceiverDataLoad: EnhancedDataManagerCallback = useCallback(
+    (data) => {
+      form.setValue("receiverName", data.receiverName || "")
+      form.setValue("receiverStreet", data.receiverStreet || "")
+      form.setValue("receiverPostcode", data.receiverPostcode || "")
+      form.setValue("receiverCity", data.receiverCity || "")
+      form.setValue("iban", data.iban || "HR")
+    },
+    [form],
+  )
 
   // Handler for IBAN Calculator
-  const handleIBANSelect = useCallback((iban: string) => {
-    form.setValue("iban", iban)
-  }, [form]);
+  const handleIBANSelect = useCallback(
+    (iban: string) => {
+      form.setValue("iban", iban)
+    },
+    [form],
+  )
 
   async function onSubmit(values: PaymentFormData) {
     setIsLoading(true)
@@ -841,26 +1113,28 @@ export default function PaymentForm() {
         toast({
           title: "Obrazac je uspješno poslan",
           description: "Vaš barkod je generiran.",
-        });
-        const newParams = new URLSearchParams();
+        })
+        const newParams = new URLSearchParams()
         Object.entries(values).forEach(([key, value]) => {
           if (value && String(value).trim() !== "") {
-            newParams.set(key, String(value));
+            newParams.set(key, String(value))
           }
-        });
-        setSearchParams(newParams);
+        })
+        setSearchParams(newParams)
       } else {
         toast({
           title: "Greška",
-          description: "Došlo je do greške prilikom slanja obrasca. Molimo pokušajte ponovno.",
+          description:
+            "Došlo je do greške prilikom slanja obrasca. Molimo pokušajte ponovno.",
           variant: "destructive",
         })
       }
     } catch (error) {
-      console.error("Submission error:", error);
+      console.error("Submission error:", error)
       toast({
         title: "Greška",
-        description: "Došlo je do greške prilikom slanja obrasca. Molimo pokušajte ponovno.",
+        description:
+          "Došlo je do greške prilikom slanja obrasca. Molimo pokušajte ponovno.",
         variant: "destructive",
       })
     } finally {
@@ -869,12 +1143,18 @@ export default function PaymentForm() {
   }
 
   const handleIbanPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
-    const pastedContent = event.clipboardData.getData('text/plain').replace(/\s/g, '').toUpperCase()
+    const pastedContent = event.clipboardData
+      .getData("text/plain")
+      .replace(/\s/g, "")
+      .toUpperCase()
     const currentValue = event.currentTarget.value
     const selectionStart = event.currentTarget.selectionStart ?? 0
     const selectionEnd = event.currentTarget.selectionEnd ?? 0
 
-    const newValue = currentValue.substring(0, selectionStart) + pastedContent + currentValue.substring(selectionEnd)
+    const newValue =
+      currentValue.substring(0, selectionStart) +
+      pastedContent +
+      currentValue.substring(selectionEnd)
 
     const ibanPattern = /^HR\d{19}$/
 
@@ -885,70 +1165,73 @@ export default function PaymentForm() {
 
   const createBarcodeCanvas = async (imageSrc: string): Promise<HTMLCanvasElement> => {
     return new Promise((resolve, reject) => {
-      const img = new window.Image();
-      img.crossOrigin = "anonymous";
+      const img = new window.Image()
+      img.crossOrigin = "anonymous"
       img.onload = () => {
-        const padding = 4;
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width + (padding * 2);
-        canvas.height = img.height + (padding * 2);
+        const padding = 4
+        const canvas = document.createElement("canvas")
+        canvas.width = img.width + padding * 2
+        canvas.height = img.height + padding * 2
 
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext("2d")
         if (!ctx) {
-          reject(new Error("Could not get canvas context"));
-          return;
+          reject(new Error("Could not get canvas context"))
+          return
         }
 
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white"
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-        ctx.drawImage(img, padding, padding, img.width, img.height);
+        ctx.drawImage(img, padding, padding, img.width, img.height)
 
-        resolve(canvas);
-      };
+        resolve(canvas)
+      }
       img.onerror = (error) => {
-        console.error("Image loading error:", error);
-        reject(new Error("Failed to load barcode image"));
-      };
-      img.src = imageSrc;
-    });
-  };
+        console.error("Image loading error:", error)
+        reject(new Error("Failed to load barcode image"))
+      }
+      img.src = imageSrc
+    })
+  }
 
   const handleDownload = async () => {
     if (barcodeUrl) {
       try {
-        const canvas = await createBarcodeCanvas(barcodeUrl);
+        const canvas = await createBarcodeCanvas(barcodeUrl)
 
-        canvas.toBlob((blob: Blob | null) => {
-          if (!blob) {
-            toast({
-              title: "Error",
-              description: "Failed to create image blob.",
-              variant: "destructive",
-            });
-            return;
-          }
+        canvas.toBlob(
+          (blob: Blob | null) => {
+            if (!blob) {
+              toast({
+                title: "Error",
+                description: "Failed to create image blob.",
+                variant: "destructive",
+              })
+              return
+            }
 
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.style.display = "none";
-          a.href = url;
-          a.download = "barcode-with-background.png";
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-        }, "image/png");
+            const url = window.URL.createObjectURL(blob)
+            const a = document.createElement("a")
+            a.style.display = "none"
+            a.href = url
+            a.download = "barcode-with-background.png"
+            document.body.appendChild(a)
+            a.click()
+            window.URL.revokeObjectURL(url)
+            document.body.removeChild(a)
+          },
+          "image/png",
+        )
       } catch (error) {
-        console.error("Error downloading barcode:", error);
+        console.error("Error downloading barcode:", error)
         toast({
           title: "Error",
           description: "Failed to download the barcode.",
           variant: "destructive",
-        });
+        })
       }
     }
-  };
+  }
 
   const handleShare = async () => {
     if (!barcodeUrl) {
@@ -956,70 +1239,74 @@ export default function PaymentForm() {
         title: "Error",
         description: "No barcode has been generated yet.",
         variant: "destructive",
-      });
-      return;
+      })
+      return
     }
 
     try {
-      const canvas = await createBarcodeCanvas(barcodeUrl);
+      const canvas = await createBarcodeCanvas(barcodeUrl)
 
-      canvas.toBlob(async (blob: Blob | null) => {
-        if (!blob) {
-          toast({
-            title: "Error",
-            description: "Failed to create image blob.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        const file = new File([blob], "hub3-barkod.png", { type: "image/png" });
-
-        if (navigator.share) {
-          try {
-            await navigator.share({
-              files: [file],
-              title: "HUB3 Barcode",
-              text: "HUB3 barkod",
-            });
-          } catch (error) {
-            console.error("Error sharing:", error);
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.style.display = "none";
-            a.href = url;
-            a.download = "hub3-barkod.png";
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+      canvas.toBlob(
+        async (blob: Blob | null) => {
+          if (!blob) {
+            toast({
+              title: "Error",
+              description: "Failed to create image blob.",
+              variant: "destructive",
+            })
+            return
           }
-        } else {
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.style.display = "none";
-          a.href = url;
-          a.download = "hub3-barkod.png";
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
 
-          toast({
-            title: "Info",
-            description: "Vaš preglednik ne podržava izravno dijeljenje. Barkod je preuzet umjesto toga.",
-          });
-        }
-      }, "image/png");
+          const file = new File([blob], "hub3-barkod.png", { type: "image/png" })
+
+          if (navigator.share) {
+            try {
+              await navigator.share({
+                files: [file],
+                title: "HUB3 Barcode",
+                text: "HUB3 barkod",
+              })
+            } catch (error) {
+              console.error("Error sharing:", error)
+              const url = window.URL.createObjectURL(blob)
+              const a = document.createElement("a")
+              a.style.display = "none"
+              a.href = url
+              a.download = "hub3-barkod.png"
+              document.body.appendChild(a)
+              a.click()
+              window.URL.revokeObjectURL(url)
+              document.body.removeChild(a)
+            }
+          } else {
+            const url = window.URL.createObjectURL(blob)
+            const a = document.createElement("a")
+            a.style.display = "none"
+            a.href = url
+            a.download = "hub3-barkod.png"
+            document.body.appendChild(a)
+            a.click()
+            window.URL.revokeObjectURL(url)
+            document.body.removeChild(a)
+
+            toast({
+              title: "Info",
+              description:
+                "Vaš preglednik ne podržava izravno dijeljenje. Barkod je preuzet umjesto toga.",
+            })
+          }
+        },
+        "image/png",
+      )
     } catch (error) {
-      console.error("Error sharing:", error);
+      console.error("Error sharing:", error)
       toast({
         title: "Error",
         description: "Došlo je do greške prilikom dijeljenja barkoda.",
         variant: "destructive",
-      });
+      })
     }
-  };
+  }
 
   const handleGeneratePdf = async () => {
     if (!currentFormUrl) {
@@ -1027,36 +1314,36 @@ export default function PaymentForm() {
         title: "Greška",
         description: "URL obrasca nije dostupan za generiranje PDF-a.",
         variant: "destructive",
-      });
-      return;
+      })
+      return
     }
 
-    setIsPdfGenerating(true);
+    setIsPdfGenerating(true)
     try {
-      const currentFormData = form.getValues();
+      const currentFormData = form.getValues()
       // Use currentFormUrl received from FormLinkComponent
       await generatePaymentPdf({
         formData: currentFormData,
         barcodeImageUrl: barcodeUrl, // Pass the currently generated barcode URL
         formLink: currentFormUrl,
-      });
+      })
 
       toast({
         title: "PDF generiran",
         description: "Uplatnica je uspješno generirana i preuzeta.",
-      });
+      })
     } catch (error) {
-      console.error("Error generating PDF:", error);
+      console.error("Error generating PDF:", error)
       toast({
         title: "Greška",
-        description: "Došlo je do greške prilikom generiranja PDF-a. Molimo pokušajte ponovno.",
+        description:
+          "Došlo je do greške prilikom generiranja PDF-a. Molimo pokušajte ponovno.",
         variant: "destructive",
-      });
+      })
     } finally {
-      setIsPdfGenerating(false);
+      setIsPdfGenerating(false)
     }
-  };
-
+  }
 
   const fillDummyData = useCallback(() => {
     const dummyData: PaymentFormData = {
@@ -1076,7 +1363,7 @@ export default function PaymentForm() {
       description: "Uplata",
     }
     form.reset(dummyData)
-  }, [form]);
+  }, [form])
 
   const resetForm = useCallback(() => {
     form.reset({
@@ -1097,7 +1384,7 @@ export default function PaymentForm() {
     })
     setBarcodeUrl("")
     setSearchParams(new URLSearchParams())
-  }, [form, setSearchParams]);
+  }, [form, setSearchParams])
 
   return (
     <div className="w-full">
@@ -1127,16 +1414,23 @@ export default function PaymentForm() {
         </div>
 
         {/* Center - Main Form */}
-        <Card className="w-full max-w-2xl mx-auto bg-background">
+        <Card className="mx-auto w-full max-w-2xl bg-background">
           <CardHeader>
             <CardTitle className="text-center">Barkod za plaćanje</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-center space-x-4 mb-6">
-              <Button onClick={fillDummyData} className="hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500">
+            <div className="mb-6 flex justify-center space-x-4">
+              <Button
+                onClick={fillDummyData}
+                className="shadow-green-500 hover:shadow-blue-500 hover:scale-105 hover:opacity-75 shadow-md"
+              >
                 <LuTestTube className="mr-2 h-4 w-4" /> Demo
               </Button>
-              <Button onClick={resetForm} className="hover:scale-105 hover:opacity-75 shadow-md shadow-red-500 hover:shadow-blue-500" variant="destructive">
+              <Button
+                onClick={resetForm}
+                className="shadow-red-500 hover:shadow-blue-500 hover:scale-105 hover:opacity-75 shadow-md"
+                variant="destructive"
+              >
                 <LuRotateCcw className="mr-2 h-4 w-4" /> Resetiraj
               </Button>
             </div>
@@ -1158,10 +1452,18 @@ export default function PaymentForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Ime i prezime <span className="text-sm text-muted-foreground">max 30</span>
+                            Ime i prezime{" "}
+                            <span className="text-sm text-muted-foreground">
+                              max 30
+                            </span>
                           </FormLabel>
                           <FormControl>
-                            <Input placeholder="npr. Ivo Ivić" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={30} {...field} />
+                            <Input
+                              placeholder="npr. Ivo Ivić"
+                              className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted"
+                              maxLength={30}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1173,10 +1475,18 @@ export default function PaymentForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Adresa <span className="text-sm text-muted-foreground">max 27</span>
+                            Adresa{" "}
+                            <span className="text-sm text-muted-foreground">
+                              max 27
+                            </span>
                           </FormLabel>
                           <FormControl>
-                            <Input placeholder="npr. Ilica 1" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={27} {...field} />
+                            <Input
+                              placeholder="npr. Ilica 1"
+                              className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted"
+                              maxLength={27}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1197,10 +1507,18 @@ export default function PaymentForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Ime i prezime <span className="text-sm text-muted-foreground">max 25</span>
+                            Ime i prezime{" "}
+                            <span className="text-sm text-muted-foreground">
+                              max 25
+                            </span>
                           </FormLabel>
                           <FormControl>
-                            <Input placeholder="npr. Ana Anić" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={25} {...field} />
+                            <Input
+                              placeholder="npr. Ana Anić"
+                              className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted"
+                              maxLength={25}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1212,10 +1530,18 @@ export default function PaymentForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Adresa <span className="text-sm text-muted-foreground">max 25</span>
+                            Adresa{" "}
+                            <span className="text-sm text-muted-foreground">
+                              max 25
+                            </span>
                           </FormLabel>
                           <FormControl>
-                            <Input placeholder="npr. Trg bana Jelačića 1" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={25} {...field} />
+                            <Input
+                              placeholder="npr. Trg bana Jelačića 1"
+                              className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted"
+                              maxLength={25}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1244,7 +1570,7 @@ export default function PaymentForm() {
                         <FormControl>
                           <Input
                             placeholder="HR + 19 brojeva"
-                            className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow font-mono"
+                            className="font-mono bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted"
                             maxLength={21}
                             onPaste={handleIbanPaste}
                             {...field}
@@ -1254,7 +1580,7 @@ export default function PaymentForm() {
                       </FormItem>
                     )}
                   />
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <FormField
                       control={form.control}
                       name="amount"
@@ -1276,7 +1602,7 @@ export default function PaymentForm() {
                           <FormLabel>Model</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow">
+                              <SelectTrigger className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted">
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
@@ -1337,9 +1663,12 @@ export default function PaymentForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Namjena</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
-                              <SelectTrigger className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow">
+                              <SelectTrigger className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted">
                                 <SelectValue placeholder="Odaberite namjenu" />
                               </SelectTrigger>
                             </FormControl>
@@ -1356,14 +1685,17 @@ export default function PaymentForm() {
                       )}
                     />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="reference"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Poziv na broj <span className="text-sm text-muted-foreground">max 22</span>
+                            Poziv na broj{" "}
+                            <span className="text-sm text-muted-foreground">
+                              max 22
+                            </span>
                           </FormLabel>
                           <FormControl>
                             <ReferenceNumberInput
@@ -1383,10 +1715,18 @@ export default function PaymentForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>
-                            Opis plaćanja <span className="text-sm text-muted-foreground">max 35</span>
+                            Opis plaćanja{" "}
+                            <span className="text-sm text-muted-foreground">
+                              max 35
+                            </span>
                           </FormLabel>
                           <FormControl>
-                            <Input placeholder="npr. plaćanje računa" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={35} {...field} />
+                            <Input
+                              placeholder="npr. plaćanje računa"
+                              className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted"
+                              maxLength={35}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1399,7 +1739,11 @@ export default function PaymentForm() {
                 <ValidationSummaryCard iban={form.watch("iban")} />
 
                 <div className="flex justify-center">
-                  <Button type="submit" className="w-full hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500 animate-bounce" disabled={isLoading}>
+                  <Button
+                    type="submit"
+                    className="animate-bounce w-full shadow-green-500 hover:shadow-blue-500 hover:scale-105 hover:opacity-75 shadow-md"
+                    disabled={isLoading}
+                  >
                     {isLoading ? (
                       <>
                         <LuLoader className="mr-2 h-4 w-4 animate-spin" />
@@ -1434,17 +1778,23 @@ export default function PaymentForm() {
                     />
                   </div>
                   <div className="flex justify-center space-x-4">
-                    <Button onClick={handleDownload} className="hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500">
+                    <Button
+                      onClick={handleDownload}
+                      className="shadow-green-500 hover:shadow-blue-500 hover:scale-105 hover:opacity-75 shadow-md"
+                    >
                       <LuDownload className="mr-2 h-4 w-4" /> Preuzmi
                     </Button>
-                    <Button onClick={handleShare} className="hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500">
+                    <Button
+                      onClick={handleShare}
+                      className="shadow-green-500 hover:shadow-blue-500 hover:scale-105 hover:opacity-75 shadow-md"
+                    >
                       <LuShare2 className="mr-2 h-4 w-4" /> Podijeli
                     </Button>
                     {/* New PDF button */}
                     <Button
                       onClick={handleGeneratePdf}
                       disabled={isPdfGenerating || !barcodeUrl || !currentFormUrl} // Disable if already generating or no barcode or no form URL
-                      className="hover:scale-105 hover:opacity-75 shadow-md shadow-blue-500 hover:shadow-purple-500"
+                      className="shadow-blue-500 hover:shadow-purple-500 hover:scale-105 hover:opacity-75 shadow-md"
                     >
                       {isPdfGenerating ? (
                         <>
@@ -1461,7 +1811,10 @@ export default function PaymentForm() {
                 </CardContent>
               </Card>
             )}
-            <FormLinkComponent watch={form.watch} onFormUrlChange={handleFormUrlChange} />
+            <FormLinkComponent
+              watch={form.watch}
+              onFormUrlChange={handleFormUrlChange}
+            />
           </CardContent>
           {(isLoading || isPdfGenerating) && <LoadingSpinner />}
         </Card>
@@ -1487,16 +1840,23 @@ export default function PaymentForm() {
 
       {/* Mobile/tablet layout: stacked */}
       <div className="xl:hidden">
-        <Card className="w-full max-w-2xl mx-auto bg-background">
+        <Card className="mx-auto w-full max-w-2xl bg-background">
           <CardHeader>
             <CardTitle className="text-center">Barkod za plaćanje</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-center space-x-4 mb-6">
-              <Button onClick={fillDummyData} className="hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500">
+            <div className="mb-6 flex justify-center space-x-4">
+              <Button
+                onClick={fillDummyData}
+                className="shadow-green-500 hover:shadow-blue-500 hover:scale-105 hover:opacity-75 shadow-md"
+              >
                 <LuTestTube className="mr-2 h-4 w-4" /> Umetni probne podatke
               </Button>
-              <Button onClick={resetForm} className="hover:scale-105 hover:opacity-75 shadow-md shadow-red-500 hover:shadow-blue-500" variant="destructive">
+              <Button
+                onClick={resetForm}
+                className="shadow-red-500 hover:shadow-blue-500 hover:scale-105 hover:opacity-75 shadow-md"
+                variant="destructive"
+              >
                 <LuRotateCcw className="mr-2 h-4 w-4" /> Resetiraj
               </Button>
             </div>
@@ -1517,9 +1877,19 @@ export default function PaymentForm() {
                       name="senderName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Ime i prezime <span className="text-sm text-muted-foreground">max 30</span></FormLabel>
+                          <FormLabel>
+                            Ime i prezime{" "}
+                            <span className="text-sm text-muted-foreground">
+                              max 30
+                            </span>
+                          </FormLabel>
                           <FormControl>
-                            <Input placeholder="npr. Ivo Ivić" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={30} {...field} />
+                            <Input
+                              placeholder="npr. Ivo Ivić"
+                              className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted"
+                              maxLength={30}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1530,9 +1900,19 @@ export default function PaymentForm() {
                       name="senderStreet"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Adresa <span className="text-sm text-muted-foreground">max 27</span></FormLabel>
+                          <FormLabel>
+                            Adresa{" "}
+                            <span className="text-sm text-muted-foreground">
+                              max 27
+                            </span>
+                          </FormLabel>
                           <FormControl>
-                            <Input placeholder="npr. Ilica 1" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={27} {...field} />
+                            <Input
+                              placeholder="npr. Ilica 1"
+                              className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted"
+                              maxLength={27}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1552,9 +1932,19 @@ export default function PaymentForm() {
                       name="receiverName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Ime i prezime <span className="text-sm text-muted-foreground">max 25</span></FormLabel>
+                          <FormLabel>
+                            Ime i prezime{" "}
+                            <span className="text-sm text-muted-foreground">
+                              max 25
+                            </span>
+                          </FormLabel>
                           <FormControl>
-                            <Input placeholder="npr. Ana Anić" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={25} {...field} />
+                            <Input
+                              placeholder="npr. Ana Anić"
+                              className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted"
+                              maxLength={25}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1565,9 +1955,19 @@ export default function PaymentForm() {
                       name="receiverStreet"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Adresa <span className="text-sm text-muted-foreground">max 25</span></FormLabel>
+                          <FormLabel>
+                            Adresa{" "}
+                            <span className="text-sm text-muted-foreground">
+                              max 25
+                            </span>
+                          </FormLabel>
                           <FormControl>
-                            <Input placeholder="npr. Trg bana Jelačića 1" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={25} {...field} />
+                            <Input
+                              placeholder="npr. Trg bana Jelačića 1"
+                              className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted"
+                              maxLength={25}
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1596,7 +1996,7 @@ export default function PaymentForm() {
                         <FormControl>
                           <Input
                             placeholder="HR + 19 brojeva"
-                            className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow font-mono"
+                            className="font-mono bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted"
                             maxLength={21}
                             onPaste={handleIbanPaste}
                             {...field}
@@ -1630,7 +2030,7 @@ export default function PaymentForm() {
                           <FormLabel>Model</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow">
+                              <SelectTrigger className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted">
                                 <SelectValue placeholder="Odaberite model" />
                               </SelectTrigger>
                             </FormControl>
@@ -1691,9 +2091,12 @@ export default function PaymentForm() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Namjena</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
-                              <SelectTrigger className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow">
+                              <SelectTrigger className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted">
                                 <SelectValue placeholder="Odaberite namjenu" />
                               </SelectTrigger>
                             </FormControl>
@@ -1716,7 +2119,12 @@ export default function PaymentForm() {
                     name="reference"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Poziv na broj <span className="text-sm text-muted-foreground">max 22</span></FormLabel>
+                        <FormLabel>
+                          Poziv na broj{" "}
+                          <span className="text-sm text-muted-foreground">
+                            max 22
+                          </span>
+                        </FormLabel>
                         <FormControl>
                           <ReferenceNumberInput
                             value={field.value || ""}
@@ -1735,9 +2143,19 @@ export default function PaymentForm() {
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Opis plaćanja <span className="text-sm text-muted-foreground">max 35</span></FormLabel>
+                        <FormLabel>
+                          Opis plaćanja{" "}
+                          <span className="text-sm text-muted-foreground">
+                            max 35
+                          </span>
+                        </FormLabel>
                         <FormControl>
-                          <Input placeholder="npr. plaćanje računa" className="bg-muted/50 hover:bg-muted hover:shadow-green-200 hover:shadow" maxLength={35} {...field} />
+                          <Input
+                            placeholder="npr. plaćanje računa"
+                            className="bg-muted/50 hover:shadow-green-200 hover:shadow hover:bg-muted"
+                            maxLength={35}
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1748,7 +2166,11 @@ export default function PaymentForm() {
                 <ValidationSummaryCard iban={form.watch("iban")} />
 
                 <div className="flex justify-center">
-                  <Button type="submit" className="w-full hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500 animate-bounce" disabled={isLoading}>
+                  <Button
+                    type="submit"
+                    className="animate-bounce w-full shadow-green-500 hover:shadow-blue-500 hover:scale-105 hover:opacity-75 shadow-md"
+                    disabled={isLoading}
+                  >
                     {isLoading ? (
                       <>
                         <LuLoader className="mr-2 h-4 w-4 animate-spin" />
@@ -1783,17 +2205,23 @@ export default function PaymentForm() {
                     />
                   </div>
                   <div className="flex justify-center space-x-4">
-                    <Button onClick={handleDownload} className="hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500">
+                    <Button
+                      onClick={handleDownload}
+                      className="shadow-green-500 hover:shadow-blue-500 hover:scale-105 hover:opacity-75 shadow-md"
+                    >
                       <LuDownload className="mr-2 h-4 w-4" /> Preuzmi
                     </Button>
-                    <Button onClick={handleShare} className="hover:scale-105 hover:opacity-75 shadow-md shadow-green-500 hover:shadow-blue-500">
+                    <Button
+                      onClick={handleShare}
+                      className="shadow-green-500 hover:shadow-blue-500 hover:scale-105 hover:opacity-75 shadow-md"
+                    >
                       <LuShare2 className="mr-2 h-4 w-4" /> Podijeli
                     </Button>
                     {/* New PDF button for mobile */}
                     <Button
                       onClick={handleGeneratePdf}
                       disabled={isPdfGenerating || !barcodeUrl || !currentFormUrl}
-                      className="hover:scale-105 hover:opacity-75 shadow-md shadow-blue-500 hover:shadow-purple-500"
+                      className="shadow-blue-500 hover:shadow-purple-500 hover:scale-105 hover:opacity-75 shadow-md"
                     >
                       {isPdfGenerating ? (
                         <>
@@ -1811,7 +2239,10 @@ export default function PaymentForm() {
               </Card>
             )}
 
-            <FormLinkComponent watch={form.watch} onFormUrlChange={handleFormUrlChange} /> {/* Pass callback */}
+            <FormLinkComponent
+              watch={form.watch}
+              onFormUrlChange={handleFormUrlChange}
+            />
 
             {/* Mobile validation components */}
             <div className="mt-8 space-y-4">
