@@ -1,5 +1,3 @@
-// lib/generate-payment-pdf.ts
-
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable'; // Import for side-effects ONLY. This runs the plugin.
 import QRCode from 'qrcode';
@@ -253,29 +251,6 @@ export async function generatePaymentPdf({
       yPos += 15;
     }
   }
-
-  // --- Footer: Current Date and Time ---
-  const currentDate = new Date();
-  const options: Intl.DateTimeFormatOptions = {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  };
-  const formattedDateTime = currentDate.toLocaleString('hr-HR', options);
-  
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  // Position closer to bottom, ensure it's below all content units
-  doc.text(
-    `Generirano: ${formattedDateTime}`,
-    pageCenterX,
-    doc.internal.pageSize.getHeight() - (margin / 2),
-    { align: 'center' }
-  );
 
   doc.save(`uplatnica_${new Date().toISOString().split('T')[0]}.pdf`);
 }
