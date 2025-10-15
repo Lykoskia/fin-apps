@@ -23,35 +23,34 @@ export function VisualPaymentForm({
   const [imageLoaded, setImageLoaded] = useState(false)
   const [debugMode, setDebugMode] = useState(false) // NEW: Debug mode toggle
 
-  // Coordinates for 1200x607 image
-  // Canvas draws at 1200x607 but displays at ~440x223, so fonts must be ~2.7x larger
+  // Coordinates for 1200x607 image - RECALIBRATED based on debug feedback
   const FIELD_POSITIONS = {
     // SENDER (PLATITELJ) - only name and address
-    senderName: { x: 43, y: 40, maxWidth: 126, fontSize: 35 },
-    senderAddress: { x: 43, y: 49, maxWidth: 126, fontSize: 30 },
+    senderName: { x: 95, y: 92, maxWidth: 260, fontSize: 28 },
+    senderAddress: { x: 95, y: 117, maxWidth: 260, fontSize: 24 },
     
     // RECEIVER (PRIMATELJ) - has everything
-    receiverName: { x: 43, y: 117, maxWidth: 126, fontSize: 35 },
-    receiverAddress: { x: 43, y: 126, maxWidth: 126, fontSize: 30 },
-    receiverIBAN: { x: 237, y: 99, maxWidth: 194, fontSize: 35, mono: true, spacing: 7 },
-    receiverModel: { x: 237, y: 120, maxWidth: 38, fontSize: 35, mono: true, spacing: 7 },
-    receiverReference: { x: 289, y: 120, maxWidth: 144, fontSize: 35, mono: true, spacing: 7 },
+    receiverName: { x: 95, y: 248, maxWidth: 260, fontSize: 28 },
+    receiverAddress: { x: 95, y: 273, maxWidth: 260, fontSize: 24 },
+    receiverIBAN: { x: 377, y: 207, maxWidth: 432, fontSize: 28, mono: true, spacing: 15 },
+    receiverModel: { x: 377, y: 244, maxWidth: 75, fontSize: 28, mono: true, spacing: 13 },
+    receiverReference: { x: 490, y: 244, maxWidth: 320, fontSize: 28, mono: true, spacing: 13 },
     
     // Payment details
-    purposeCode: { x: 237, y: 145, maxWidth: 45, fontSize: 35 },
-    description: { x: 298, y: 145, maxWidth: 135, fontSize: 30 },
-    amount: { x: 415, y: 40, maxWidth: 81, fontSize: 40, mono: true, align: 'right' as const },
-    currency: { x: 334, y: 40, maxWidth: 36, fontSize: 35 },
+    purposeCode: { x: 377, y: 298, maxWidth: 90, fontSize: 28 },
+    description: { x: 527, y: 298, maxWidth: 285, fontSize: 24 },
+    amount: { x: 812, y: 92, maxWidth: 165, fontSize: 32, mono: true, align: 'right' as const },
+    currency: { x: 660, y: 92, maxWidth: 72, fontSize: 28 },
     
     // Right side - Receipt section
-    receiptAmount: { x: 718, y: 37, maxWidth: 203, fontSize: 32, align: 'right' as const },
-    receiptSenderName: { x: 718, y: 65, maxWidth: 203, fontSize: 28 },
-    receiptReceiverIBAN: { x: 718, y: 107, maxWidth: 203, fontSize: 32 },
-    receiptReceiverModelRef: { x: 718, y: 130, maxWidth: 203, fontSize: 32 },
-    receiptDescription: { x: 718, y: 157, maxWidth: 203, fontSize: 28 },
+    receiptAmount: { x: 1000, y: 85, maxWidth: 190, fontSize: 26, align: 'right' as const },
+    receiptSenderName: { x: 1000, y: 135, maxWidth: 190, fontSize: 22 },
+    receiptReceiverIBAN: { x: 1000, y: 210, maxWidth: 190, fontSize: 24 },
+    receiptReceiverModelRef: { x: 1000, y: 253, maxWidth: 190, fontSize: 24 },
+    receiptDescription: { x: 1000, y: 300, maxWidth: 190, fontSize: 22 },
     
-    // Barcode position (lower left) - FIXED: was off canvas!
-    barcode: { x: 43, y: 320, width: 172, height: 59 },
+    // Barcode position (lower left)
+    barcode: { x: 68, y: 382, width: 215, height: 73 },
   }
 
   const drawText = useCallback((
