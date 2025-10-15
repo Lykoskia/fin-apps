@@ -884,7 +884,7 @@ const ReferenceNumberInput: React.FC<{
     // Define default and model-specific segment length rules
     let p1MaxLength = 12;
     let p2MaxLength = 12;
-    let p3MaxLength = 12; // P3 isn't explicitly mentioned with exceptions, assume general 12
+    const p3MaxLength = 12; // P3 isn't explicitly mentioned with exceptions, assume general 12
 
     // Apply model-specific rules from the FINA document
     switch (model) {
