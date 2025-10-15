@@ -23,34 +23,41 @@ export function VisualPaymentForm({
   const [imageLoaded, setImageLoaded] = useState(false)
   const [debugMode, setDebugMode] = useState(false) // NEW: Debug mode toggle
 
-  // Coordinates for 1200x607 image - FINE-TUNED based on actual form comparison
+  // Coordinates for 1200x607 image - COMPLETE RESTART based on actual form
+  // Using your zoomed reference image as guide
   const FIELD_POSITIONS = {
-    // SENDER (PLATITELJ) - only name and address
-    senderName: { x: 88, y: 78, maxWidth: 240, fontSize: 26 },
-    senderAddress: { x: 88, y: 100, maxWidth: 240, fontSize: 22 },
+    // SENDER (PLATITELJ) - top left area
+    senderName: { x: 75, y: 73, maxWidth: 210, fontSize: 24 },
+    senderAddress: { x: 75, y: 93, maxWidth: 210, fontSize: 20 },
     
-    // RECEIVER (PRIMATELJ) - has everything
-    receiverName: { x: 88, y: 258, maxWidth: 240, fontSize: 26 },
-    receiverAddress: { x: 88, y: 280, maxWidth: 240, fontSize: 22 },
-    receiverIBAN: { x: 372, y: 218, maxWidth: 540, fontSize: 26, mono: true, spacing: 18 },
-    receiverModel: { x: 372, y: 268, maxWidth: 100, fontSize: 26, mono: true, spacing: 18 },
-    receiverReference: { x: 520, y: 268, maxWidth: 390, fontSize: 26, mono: true, spacing: 18 },
+    // RECEIVER (PRIMATELJ) - middle left area
+    receiverName: { x: 75, y: 252, maxWidth: 210, fontSize: 24 },
+    receiverAddress: { x: 75, y: 272, maxWidth: 210, fontSize: 20 },
     
-    // Payment details
-    purposeCode: { x: 372, y: 315, maxWidth: 100, fontSize: 26 },
-    description: { x: 565, y: 315, maxWidth: 345, fontSize: 22 },
-    amount: { x: 915, y: 78, maxWidth: 155, fontSize: 28, mono: true, align: 'right' as const },
-    currency: { x: 750, y: 78, maxWidth: 65, fontSize: 26 },
+    // RECEIVER IBAN - long horizontal field in middle (CRITICAL - this was completely wrong!)
+    receiverIBAN: { x: 370, y: 207, maxWidth: 520, fontSize: 24, mono: true, spacing: 16 },
     
-    // Right side - Receipt section (valuta i iznos)
-    receiptAmount: { x: 1000, y: 72, maxWidth: 185, fontSize: 24, align: 'right' as const },
-    receiptSenderName: { x: 1000, y: 115, maxWidth: 185, fontSize: 20 },
-    receiptReceiverIBAN: { x: 1000, y: 218, maxWidth: 185, fontSize: 22 },
-    receiptReceiverModelRef: { x: 1000, y: 268, maxWidth: 185, fontSize: 22 },
-    receiptDescription: { x: 1000, y: 315, maxWidth: 185, fontSize: 20 },
+    // RECEIVER Model and Reference - below IBAN (these were missing!)
+    receiverModel: { x: 370, y: 262, maxWidth: 90, fontSize: 24, mono: true, spacing: 16 },
+    receiverReference: { x: 515, y: 262, maxWidth: 375, fontSize: 24, mono: true, spacing: 16 },
     
-    // Barcode position - FILLS THE ENTIRE "Pečat korisnika PU" box
-    barcode: { x: 60, y: 395, width: 295, height: 180 },
+    // Payment details - Šifra namjene (purpose) and Opis plaćanja (description)
+    purposeCode: { x: 370, y: 312, maxWidth: 80, fontSize: 24 },
+    description: { x: 525, y: 312, maxWidth: 365, fontSize: 20 },
+    
+    // TOP RIGHT - Currency and Amount
+    currency: { x: 735, y: 73, maxWidth: 60, fontSize: 24 },
+    amount: { x: 900, y: 73, maxWidth: 150, fontSize: 26, mono: true, align: 'right' as const },
+    
+    // RIGHT SIDE - Receipt section (Valuta i iznos)
+    receiptAmount: { x: 995, y: 68, maxWidth: 180, fontSize: 22, align: 'right' as const },
+    receiptSenderName: { x: 995, y: 108, maxWidth: 180, fontSize: 18 },
+    receiptReceiverIBAN: { x: 995, y: 207, maxWidth: 180, fontSize: 20 },
+    receiptReceiverModelRef: { x: 995, y: 262, maxWidth: 180, fontSize: 20 },
+    receiptDescription: { x: 995, y: 312, maxWidth: 180, fontSize: 18 },
+    
+    // Barcode - bottom left "Pečat korisnika PU" box
+    barcode: { x: 58, y: 388, width: 300, height: 185 },
   }
 
   const drawText = useCallback((
