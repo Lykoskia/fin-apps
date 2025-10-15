@@ -832,114 +832,167 @@ const ReferenceNumberInput: React.FC<{
   value: string
   onChange: (value: string) => void
   onBlur: () => void
-  model: string
+  model: string // Passed from the form field
 }> = ({ value, onChange, onBlur, model }) => {
-  const [internalError, setInternalError] = useState<string | null>(null) // Renamed from 'error' to avoid confusion with form errors
+  const [internalError, setInternalError] = useState<string | null>(null)
 
-  // Clear reference when model is 99
+  // Clear reference when model is 99 (as per your existing logic)
   useEffect(() => {
     if (model === "99" && value) {
       onChange("")
     }
   }, [model, onChange, value])
 
-  // Client-side validation function - provides immediate feedback
   const validateReferenceClient = useCallback((refValue: string): boolean => {
     if (!refValue || refValue.trim() === "") {
       setInternalError(null)
       return true
     }
 
-    const trimmedValue = refValue.trim()
+    const trimmedValue = refValue.trim();
 
-    // Cannot start with a hyphen
+    // 1. Check for invalid characters (non-digits or hyphens)
+    if (!/^[0-9-]+$/.test(trimmedValue)) {
+      setInternalError("Poziv na broj može sadržavati samo znamenke i crte.");
+      return false;
+    }
+
+    // 2. Cannot start or end with a hyphen
     if (trimmedValue.startsWith("-")) {
-      setInternalError("Poziv na broj ne može početi crticom.")
-      return false
+      setInternalError("Poziv na broj ne može početi crticom.");
+      return false;
+    }
+    if (trimmedValue.endsWith("-")) {
+      setInternalError("Poziv na broj ne može završiti crticom.");
+      return false;
     }
 
-    // Check if it contains only digits and hyphens, and no consecutive hyphens
-    if (!/^[0-9-]+$/.test(trimmedValue) || trimmedValue.includes("--")) {
-      setInternalError(
-        "Poziv na broj može sadržavati samo znamenke i ne smije imati dvije uzastopne crte.",
-      )
-      return false
+    // 3. Cannot have consecutive hyphens
+    if (trimmedValue.includes("--")) {
+      setInternalError("Poziv na broj ne može sadržavati dvije uzastopne crte.");
+      return false;
     }
 
-    const segments = trimmedValue.split("-")
+    const segments = trimmedValue.split("-");
 
-    // Maximum 4 segments (3 hyphens)
-    if (segments.length > 4) {
-      setInternalError("Dozvoljeno je najviše 3 crte.")
-      return false
+    // FINA RULE: Maximum 3 segments (P1-P2-P3), which means at most 2 hyphens
+    if (segments.length > 3) {
+      setInternalError("Dozvoljeno je najviše 2 crte (format P1-P2-P3).");
+      return false;
     }
 
-    // Each segment must have at most 11 digits
-    for (const segment of segments) {
-      if (segment.length > 11) {
-        setInternalError("Svaki segment može imati najviše 11 znamenki.")
-        return false
+    // Define default and model-specific segment length rules
+    let p1MaxLength = 12;
+    let p2MaxLength = 12;
+    let p3MaxLength = 12; // P3 isn't explicitly mentioned with exceptions, assume general 12
+
+    // Apply model-specific rules from the FINA document
+    switch (model) {
+      case "12": // HR12
+      case "41": // HR41
+        p1MaxLength = 13;
+        break;
+      case "24": // HR24
+        p2MaxLength = 13;
+        break;
+      case "69": // HR69 - P2 is OIB, fixed 11 digits
+        p2MaxLength = 11;
+        if (segments[1] && segments[1].length !== 11) {
+          setInternalError(`Za model HR${model}, P2 (OIB) mora imati točno 11 znamenki.`);
+          return false;
+        }
+        break;
+      case "83": // HR83 - P2 is fixed 16 digits
+        p2MaxLength = 16;
+        if (segments[1] && segments[1].length !== 16) {
+          setInternalError(`Za model HR${model}, P2 mora imati točno 16 znamenki.`);
+          return false;
+        }
+        break;
+      // Default case remains as max 12 for all P1, P2, P3
+    }
+
+    // Validate each segment based on its position and the model's rules
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      let currentSegmentMaxLength: number;
+      let segmentName: string;
+
+      switch (i) {
+        case 0: // P1
+          currentSegmentMaxLength = p1MaxLength;
+          segmentName = "P1";
+          break;
+        case 1: // P2
+          currentSegmentMaxLength = p2MaxLength;
+          segmentName = "P2";
+          break;
+        case 2: // P3
+          currentSegmentMaxLength = p3MaxLength;
+          segmentName = "P3";
+          break;
+        default:
+          currentSegmentMaxLength = 12; // Should not be reached
+          segmentName = `Segment ${i + 1}`;
+      }
+
+      if (segment.length === 0) {
+        setInternalError(`Segment ${segmentName} ne može biti prazan.`);
+        return false;
+      }
+
+      // Only apply max length check if not already handled by exact length for HR69/HR83 P2
+      if (!((model === "69" && i === 1) || (model === "83" && i === 1))) {
+        if (segment.length > currentSegmentMaxLength) {
+          setInternalError(`Segment ${segmentName} (kod modela HR${model}) može imati najviše ${currentSegmentMaxLength} znamenki.`);
+          return false;
+        }
       }
     }
 
-    setInternalError(null)
-    return true
-  }, [])
+    setInternalError(null);
+    return true;
+  }, [model]); // Add 'model' to useCallback dependencies
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value
+    const newValue = e.target.value;
 
     // Sanitize: allow only digits and hyphens, and prevent consecutive hyphens
-    // This is the most critical part for immediate prevention
-    let sanitizedValue = ""
+    let sanitizedValue = "";
     for (let i = 0; i < newValue.length; i++) {
-      const char = newValue[i]
+      const char = newValue[i];
       if (char === "-") {
-        // Prevent starting with a hyphen
-        if (i === 0) {
-          continue // Skip the hyphen if it's the first character
+        if (i === 0 || (sanitizedValue.length > 0 && sanitizedValue[sanitizedValue.length - 1] === "-")) {
+          continue; // Skip if first char or consecutive hyphen
         }
-        // Prevent consecutive hyphens
-        if (sanitizedValue.length > 0 && sanitizedValue[sanitizedValue.length - 1] === "-")
-        {
-          continue // Skip the hyphen if the previous char was also a hyphen
-        }
-      }
-      // Allow digits
-      if (/[0-9]/.test(char)) {
-        sanitizedValue += char
-      } else if (char === "-") {
-        // Allow hyphen if it passed the previous checks
-        sanitizedValue += char
+        sanitizedValue += char;
+      } else if (/[0-9]/.test(char)) {
+        sanitizedValue += char;
       }
     }
 
-    // Enforce max length of 22 including hyphens
-    sanitizedValue = sanitizedValue.substring(0, 22)
+    // Enforce max total length of 22 including hyphens
+    sanitizedValue = sanitizedValue.substring(0, 22);
 
-    onChange(sanitizedValue)
-    validateReferenceClient(sanitizedValue) // Validate sanitized value
-  }
+    onChange(sanitizedValue);
+    // Client-side validation is called here to provide immediate feedback
+    validateReferenceClient(sanitizedValue);
+  };
 
   const handleBlur = () => {
-    let finalValue = value.trim()
+    let finalValue = value.trim();
 
     // Ensure it doesn't end with a hyphen on blur
     if (finalValue.endsWith("-")) {
-      finalValue = finalValue.slice(0, -1)
-      onChange(finalValue) // Update form state with trimmed value
+      finalValue = finalValue.slice(0, -1);
+      onChange(finalValue); // Update form state with trimmed value
     }
 
-    // Re-validate the final value to catch the "cannot end with hyphen" rule
-    if (finalValue.endsWith("-")) {
-      // This should ideally not happen if slice(-1) worked, but as a safeguard
-      setInternalError("Poziv na broj ne može završiti crticom.")
-    } else {
-      validateReferenceClient(finalValue) // Final validation for consistency
-    }
+    // Always re-validate on blur with the final (possibly trimmed) value
+    validateReferenceClient(finalValue);
 
-    onBlur() // Call react-hook-form's onBlur
-  }
+    onBlur(); // Call react-hook-form's onBlur
+  };
 
   return (
     <div>
@@ -995,7 +1048,7 @@ export default function PaymentForm() {
     setCurrentFormUrl(url)
   }, [])
 
-  // Clear reference when model is 99
+  // Clear reference when model is 99 (already present in ReferenceNumberInput and in schema)
   useEffect(() => {
     const model = form.watch("model")
     const reference = form.watch("reference")
@@ -1358,7 +1411,7 @@ export default function PaymentForm() {
       iban: "HR8323600009999999991",
       amount: "9.999,99",
       model: "00",
-      reference: "123-456-789",
+      reference: "123-456-789", // This is now valid with P1(3)-P2(3)-P3(3) fitting max 12
       purpose: "OTHR",
       description: "Uplata",
     }
