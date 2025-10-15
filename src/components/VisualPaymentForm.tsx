@@ -24,31 +24,31 @@ export function VisualPaymentForm({
   const [imageLoaded, setImageLoaded] = useState(false)
   const [debugMode, setDebugMode] = useState(false) // NEW: Debug mode toggle
 
-  // Coordinates calibrated for 2656x1345 image based on visual feedback
+  // Coordinates for 2656x1345 image with MUCH LARGER fonts for visibility when scaled
   const FIELD_POSITIONS = {
     // SENDER (PLATITELJ) - only name and address
-    senderName: { x: 95, y: 88, maxWidth: 280, fontSize: 13 },
-    senderAddress: { x: 95, y: 108, maxWidth: 280, fontSize: 12 },
+    senderName: { x: 95, y: 88, maxWidth: 280, fontSize: 32 },
+    senderAddress: { x: 95, y: 108, maxWidth: 280, fontSize: 28 },
     
     // RECEIVER (PRIMATELJ) - has everything
-    receiverName: { x: 95, y: 260, maxWidth: 280, fontSize: 13 },
-    receiverAddress: { x: 95, y: 280, maxWidth: 280, fontSize: 12 },
-    receiverIBAN: { x: 525, y: 220, maxWidth: 430, fontSize: 13, mono: true, spacing: 15 },
-    receiverModel: { x: 525, y: 265, maxWidth: 85, fontSize: 13, mono: true, spacing: 15 },
-    receiverReference: { x: 640, y: 265, maxWidth: 320, fontSize: 13, mono: true, spacing: 15 },
+    receiverName: { x: 95, y: 260, maxWidth: 280, fontSize: 32 },
+    receiverAddress: { x: 95, y: 280, maxWidth: 280, fontSize: 28 },
+    receiverIBAN: { x: 525, y: 220, maxWidth: 430, fontSize: 32, mono: true, spacing: 15 },
+    receiverModel: { x: 525, y: 265, maxWidth: 85, fontSize: 32, mono: true, spacing: 15 },
+    receiverReference: { x: 640, y: 265, maxWidth: 320, fontSize: 32, mono: true, spacing: 15 },
     
     // Payment details
-    purposeCode: { x: 525, y: 322, maxWidth: 100, fontSize: 13 },
-    description: { x: 660, y: 322, maxWidth: 300, fontSize: 12 },
-    amount: { x: 920, y: 88, maxWidth: 180, fontSize: 15, mono: true, align: 'right' as const },
-    currency: { x: 740, y: 88, maxWidth: 80, fontSize: 13 },
+    purposeCode: { x: 525, y: 322, maxWidth: 100, fontSize: 32 },
+    description: { x: 660, y: 322, maxWidth: 300, fontSize: 28 },
+    amount: { x: 920, y: 88, maxWidth: 180, fontSize: 36, mono: true, align: 'right' as const },
+    currency: { x: 740, y: 88, maxWidth: 80, fontSize: 32 },
     
     // Right side - Receipt section
-    receiptAmount: { x: 1590, y: 82, maxWidth: 450, fontSize: 12, align: 'right' as const },
-    receiptSenderName: { x: 1590, y: 145, maxWidth: 450, fontSize: 11 },
-    receiptReceiverIBAN: { x: 1590, y: 238, maxWidth: 450, fontSize: 12 },
-    receiptReceiverModelRef: { x: 1590, y: 288, maxWidth: 450, fontSize: 12 },
-    receiptDescription: { x: 1590, y: 348, maxWidth: 450, fontSize: 11 },
+    receiptAmount: { x: 1590, y: 82, maxWidth: 450, fontSize: 28, align: 'right' as const },
+    receiptSenderName: { x: 1590, y: 145, maxWidth: 450, fontSize: 26 },
+    receiptReceiverIBAN: { x: 1590, y: 238, maxWidth: 450, fontSize: 28 },
+    receiptReceiverModelRef: { x: 1590, y: 288, maxWidth: 450, fontSize: 28 },
+    receiptDescription: { x: 1590, y: 348, maxWidth: 450, fontSize: 26 },
     
     // Barcode position (lower left)
     barcode: { x: 95, y: 710, width: 380, height: 130 },
