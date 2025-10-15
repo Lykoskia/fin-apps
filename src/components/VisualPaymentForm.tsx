@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -24,6 +24,11 @@ interface VisualPaymentFormProps {
  * - Maintains sync with form state
  * - Character-by-character updates
  * - Proper Croatian character support
+ * 
+ * Form Structure (HUB 3A):
+ * - PLATITELJ (Sender): name and address only - no IBAN/model/reference
+ * - PRIMATELJ (Receiver): name, address, IBAN, model, reference
+ * - Payment details: amount, purpose, description
  */
 export function VisualPaymentForm({ 
   formData, 
@@ -39,18 +44,18 @@ export function VisualPaymentForm({
   // These coordinates are approximate and may need fine-tuning based on the actual image
   const FIELD_POSITIONS = {
     // Left side - Main form
+    // SENDER (PLATITELJ) - only name and address, NO IBAN/model/reference
     senderName: { x: 90, y: 108, maxWidth: 280, fontSize: 11 },
     senderAddress: { x: 90, y: 123, maxWidth: 280, fontSize: 10 },
-    senderIBAN: { x: 435, y: 142, maxWidth: 350, fontSize: 11, mono: true, spacing: 12 },
-    senderModel: { x: 435, y: 177, maxWidth: 70, fontSize: 11, mono: true, spacing: 12 },
-    senderReference: { x: 535, y: 177, maxWidth: 250, fontSize: 11, mono: true, spacing: 12 },
     
+    // RECEIVER (PRIMATELJ) - has everything
     receiverName: { x: 90, y: 273, maxWidth: 280, fontSize: 11 },
     receiverAddress: { x: 90, y: 288, maxWidth: 280, fontSize: 10 },
     receiverIBAN: { x: 435, y: 237, maxWidth: 350, fontSize: 11, mono: true, spacing: 12 },
     receiverModel: { x: 435, y: 272, maxWidth: 70, fontSize: 11, mono: true, spacing: 12 },
     receiverReference: { x: 535, y: 272, maxWidth: 250, fontSize: 11, mono: true, spacing: 12 },
     
+    // Payment details
     purposeCode: { x: 435, y: 335, maxWidth: 80, fontSize: 11 },
     description: { x: 560, y: 335, maxWidth: 220, fontSize: 10 },
     
@@ -60,9 +65,7 @@ export function VisualPaymentForm({
     // Right side - Receipt section
     receiptCurrency: { x: 1125, y: 95, maxWidth: 200, fontSize: 10 },
     receiptAmount: { x: 1125, y: 95, maxWidth: 340, fontSize: 10, align: 'right' },
-    receiptSenderIBAN: { x: 1125, y: 138, maxWidth: 340, fontSize: 10 },
     receiptSenderName: { x: 1125, y: 153, maxWidth: 340, fontSize: 9 },
-    receiptSenderModelRef: { x: 1125, y: 168, maxWidth: 340, fontSize: 10 },
     receiptReceiverIBAN: { x: 1125, y: 235, maxWidth: 340, fontSize: 10 },
     receiptReceiverModelRef: { x: 1125, y: 280, maxWidth: 340, fontSize: 10 },
     receiptDescription: { x: 1125, y: 333, maxWidth: 340, fontSize: 9 },
@@ -144,8 +147,9 @@ export function VisualPaymentForm({
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    // Draw all form fields
-    // Sender information
+    // ==========================================
+    // SENDER (PLATITELJ) - Name and Address ONLY
+    // ==========================================
     if (formData.senderName) {
       drawText(ctx, formData.senderName, 
         FIELD_POSITIONS.senderName.x, 
@@ -174,49 +178,11 @@ export function VisualPaymentForm({
       )
     }
 
-    // Sender IBAN (formatted with spacing)
-    if (formData.iban && formData.iban.length > 2) {
-      const iban = formData.iban.replace(/\s/g, '')
-      drawText(ctx, iban,
-        FIELD_POSITIONS.senderIBAN.x,
-        FIELD_POSITIONS.senderIBAN.y,
-        {
-          maxWidth: FIELD_POSITIONS.senderIBAN.maxWidth,
-          fontSize: FIELD_POSITIONS.senderIBAN.fontSize,
-          mono: true,
-          spacing: FIELD_POSITIONS.senderIBAN.spacing
-        }
-      )
-    }
+    // NOTE: Sender IBAN, model, and reference are NOT drawn - they don't exist in your form!
 
-    // Sender Model and Reference
-    if (formData.model && formData.model !== "00") {
-      drawText(ctx, `HR${formData.model}`,
-        FIELD_POSITIONS.senderModel.x,
-        FIELD_POSITIONS.senderModel.y,
-        {
-          maxWidth: FIELD_POSITIONS.senderModel.maxWidth,
-          fontSize: FIELD_POSITIONS.senderModel.fontSize,
-          mono: true,
-          spacing: FIELD_POSITIONS.senderModel.spacing
-        }
-      )
-    }
-
-    if (formData.reference) {
-      drawText(ctx, formData.reference,
-        FIELD_POSITIONS.senderReference.x,
-        FIELD_POSITIONS.senderReference.y,
-        {
-          maxWidth: FIELD_POSITIONS.senderReference.maxWidth,
-          fontSize: FIELD_POSITIONS.senderReference.fontSize,
-          mono: true,
-          spacing: FIELD_POSITIONS.senderReference.spacing
-        }
-      )
-    }
-
-    // Receiver information
+    // ==========================================
+    // RECEIVER (PRIMATELJ) - Has everything
+    // ==========================================
     if (formData.receiverName) {
       drawText(ctx, formData.receiverName,
         FIELD_POSITIONS.receiverName.x,
@@ -245,7 +211,7 @@ export function VisualPaymentForm({
       )
     }
 
-    // Receiver IBAN
+    // Receiver IBAN (this is THE iban field from your form)
     if (formData.iban && formData.iban.length > 2) {
       const iban = formData.iban.replace(/\s/g, '')
       drawText(ctx, iban,
@@ -260,9 +226,37 @@ export function VisualPaymentForm({
       )
     }
 
-    // Receiver Model (left blank - this is typically empty in Croatian forms)
-    // Receiver Reference (left blank - this is typically empty in Croatian forms)
+    // Receiver Model and Reference (these are THE model/reference fields from your form)
+    if (formData.model && formData.model !== "00") {
+      drawText(ctx, `HR${formData.model}`,
+        FIELD_POSITIONS.receiverModel.x,
+        FIELD_POSITIONS.receiverModel.y,
+        {
+          maxWidth: FIELD_POSITIONS.receiverModel.maxWidth,
+          fontSize: FIELD_POSITIONS.receiverModel.fontSize,
+          mono: true,
+          spacing: FIELD_POSITIONS.receiverModel.spacing
+        }
+      )
+    }
 
+    if (formData.reference) {
+      drawText(ctx, formData.reference,
+        FIELD_POSITIONS.receiverReference.x,
+        FIELD_POSITIONS.receiverReference.y,
+        {
+          maxWidth: FIELD_POSITIONS.receiverReference.maxWidth,
+          fontSize: FIELD_POSITIONS.receiverReference.fontSize,
+          mono: true,
+          spacing: FIELD_POSITIONS.receiverReference.spacing
+        }
+      )
+    }
+
+    // ==========================================
+    // PAYMENT DETAILS
+    // ==========================================
+    
     // Purpose code
     if (formData.purpose) {
       drawText(ctx, formData.purpose,
@@ -311,7 +305,10 @@ export function VisualPaymentForm({
       }
     )
 
-    // Receipt section (right side)
+    // ==========================================
+    // RECEIPT SECTION (Right side)
+    // ==========================================
+    
     // Currency and amount
     if (formData.amount && formData.amount !== "0,00") {
       const amountText = `EUR ${formData.amount}`
@@ -322,18 +319,6 @@ export function VisualPaymentForm({
           maxWidth: FIELD_POSITIONS.receiptAmount.maxWidth,
           fontSize: FIELD_POSITIONS.receiptAmount.fontSize,
           align: 'right'
-        }
-      )
-    }
-
-    // Receipt IBAN
-    if (formData.iban && formData.iban.length > 2) {
-      drawText(ctx, formData.iban,
-        FIELD_POSITIONS.receiptSenderIBAN.x,
-        FIELD_POSITIONS.receiptSenderIBAN.y,
-        {
-          maxWidth: FIELD_POSITIONS.receiptSenderIBAN.maxWidth,
-          fontSize: FIELD_POSITIONS.receiptSenderIBAN.fontSize
         }
       )
     }
@@ -350,20 +335,7 @@ export function VisualPaymentForm({
       )
     }
 
-    // Receipt model and reference
-    if (formData.model && formData.reference && formData.model !== "00") {
-      const modelRef = `HR${formData.model} ${formData.reference}`
-      drawText(ctx, modelRef,
-        FIELD_POSITIONS.receiptSenderModelRef.x,
-        FIELD_POSITIONS.receiptSenderModelRef.y,
-        {
-          maxWidth: FIELD_POSITIONS.receiptSenderModelRef.maxWidth,
-          fontSize: FIELD_POSITIONS.receiptSenderModelRef.fontSize
-        }
-      )
-    }
-
-    // Receipt receiver IBAN (same as main)
+    // Receipt receiver IBAN
     if (formData.iban && formData.iban.length > 2) {
       drawText(ctx, formData.iban,
         FIELD_POSITIONS.receiptReceiverIBAN.x,
@@ -371,6 +343,19 @@ export function VisualPaymentForm({
         {
           maxWidth: FIELD_POSITIONS.receiptReceiverIBAN.maxWidth,
           fontSize: FIELD_POSITIONS.receiptReceiverIBAN.fontSize
+        }
+      )
+    }
+
+    // Receipt model and reference (for receiver)
+    if (formData.model && formData.reference && formData.model !== "00") {
+      const modelRef = `HR${formData.model} ${formData.reference}`
+      drawText(ctx, modelRef,
+        FIELD_POSITIONS.receiptReceiverModelRef.x,
+        FIELD_POSITIONS.receiptReceiverModelRef.y,
+        {
+          maxWidth: FIELD_POSITIONS.receiptReceiverModelRef.maxWidth,
+          fontSize: FIELD_POSITIONS.receiptReceiverModelRef.fontSize
         }
       )
     }
@@ -387,7 +372,9 @@ export function VisualPaymentForm({
       )
     }
 
-    // Draw barcode if available (only after successful submission)
+    // ==========================================
+    // BARCODE (only after successful submission)
+    // ==========================================
     if (barcodeUrl) {
       const barcodeImage = new Image()
       barcodeImage.crossOrigin = "anonymous"
