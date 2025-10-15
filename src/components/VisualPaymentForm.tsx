@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
+// Define a more flexible FieldPosition interface
 interface FieldPosition {
   x: number
   y: number
@@ -44,24 +45,26 @@ type FieldName =
   | 'receiptReceiverIBAN'
   | 'receiptReceiverModelRef'
   | 'receiptDescription'
+  | 'receiptSenderName'
   | 'barcode';
 
 
 // --- UNIFIED MONOSPACE SETTINGS ---
 const MONOSPACE_FONT_SIZE = 21;
-const MONOSPACE_CHAR_SPACING = 18.1;
+const MONOSPACE_CHAR_SPACING = 18.1; // This is the spacing we've been refining
 
+// Initial Field Positions - to be copied/updated after dragging
 // Coordinates for the BASE IMAGE: 1200x607 pixels (hub3a-form.png)
 const INITIAL_FIELD_POSITIONS: Record<FieldName, FieldPosition> = {
   // SENDER (PLATITELJ) - top left area
-  senderName: { x: 75, y: 85, maxWidth: 220, fontSize: 22 },
-  senderStreet: { x: 75, y: 115, maxWidth: 220, fontSize: 20 },
-  senderPostcodeCity: { x: 75, y: 135, maxWidth: 220, fontSize: 20 },
+  senderName: { x: 80, y: 90, maxWidth: 220, fontSize: 16 },
+  senderStreet: { x: 80, y: 120, maxWidth: 220, fontSize: 14 },
+  senderPostcodeCity: { x: 80, y: 140, maxWidth: 220, fontSize: 14 },
 
   // RECEIVER (PRIMATELJ) - middle left area
-  receiverName: { x: 75, y: 225, maxWidth: 220, fontSize: 22 },
-  receiverStreet: { x: 75, y: 255, maxWidth: 220, fontSize: 20 },
-  receiverPostcodeCity: { x: 75, y: 275, maxWidth: 220, fontSize: 20 },
+  receiverName: { x: 80, y: 230, maxWidth: 220, fontSize: 16 },
+  receiverStreet: { x: 80, y: 260, maxWidth: 220, fontSize: 14 },
+  receiverPostcodeCity: { x: 80, y: 280, maxWidth: 220, fontSize: 14 },
 
   // RECEIVER IBAN - long horizontal field in middle (21 chars: HR + 19 digits)
   // Max width calculated for 21 characters.
@@ -95,9 +98,9 @@ const INITIAL_FIELD_POSITIONS: Record<FieldName, FieldPosition> = {
   description: { x: 485, y: 255, maxWidth: 365, fontSize: 16 },
 
   // TOP RIGHT - Currency and Amount (VALUTA and IZNOS)
-  // Currency "EUR" (3 chars)
+  // Currency "EUR" (3 chars) - Reverting X, setting mono.
   currency: {
-    x: 448, y: 70,
+    x: 448, y: 70, // REVERTED X to original, now uses unified monospace settings
     maxWidth: 3 * MONOSPACE_CHAR_SPACING, // Max width calculated for 3 characters
     fontSize: MONOSPACE_FONT_SIZE, mono: true, spacing: MONOSPACE_CHAR_SPACING
   },
@@ -110,12 +113,13 @@ const INITIAL_FIELD_POSITIONS: Record<FieldName, FieldPosition> = {
   },
 
   // RIGHT SIDE - Receipt section (Potvrda)
-  receiptAmount: { x: 860, y: 75, maxWidth: 275, fontSize: 16, align: 'right' as const },
-  receiptReceiverIBAN: { x: 860, y: 185, maxWidth: 275, fontSize: 16 },
-  receiptReceiverModelRef: { x: 860, y: 230, maxWidth: 275, fontSize: 16 },
-  receiptDescription: { x: 860, y: 265, maxWidth: 275, fontSize: 16 },
+  receiptAmount: { x: 860, y: 75, maxWidth: 275, fontSize: 14, align: 'right' as const },
+  receiptSenderName: { x: 860, y: 111, maxWidth: 275, fontSize: 14 },
+  receiptReceiverIBAN: { x: 860, y: 186, maxWidth: 275, fontSize: 14 },
+  receiptReceiverModelRef: { x: 860, y: 229, maxWidth: 275, fontSize: 14 },
+  receiptDescription: { x: 860, y: 264, maxWidth: 275, fontSize: 14 },
 
-  // Barcode - bottom left
+  // Barcode - bottom left "Pečat korisnika PU" box
   barcode: { x: 75, y: 340, width: 300, height: 100 },
 };
 
@@ -136,7 +140,7 @@ export function VisualPaymentForm({
   const [imageLoaded, setImageLoaded] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Field positions will now be static
+  // Field positions are now static
   const fieldPositions = INITIAL_FIELD_POSITIONS; 
 
   const drawText = useCallback((
@@ -213,9 +217,7 @@ export function VisualPaymentForm({
       drawText(ctx, formData.senderName,
         fieldPositions.senderName.x,
         fieldPositions.senderName.y,
-        {
-          ...fieldPositions.senderName,
-        }
+        { ...fieldPositions.senderName }
       )
     }
 
@@ -223,9 +225,7 @@ export function VisualPaymentForm({
       drawText(ctx, formData.senderStreet,
         fieldPositions.senderStreet.x,
         fieldPositions.senderStreet.y,
-        {
-          ...fieldPositions.senderStreet,
-        }
+        { ...fieldPositions.senderStreet }
       )
     }
 
@@ -236,9 +236,7 @@ export function VisualPaymentForm({
       drawText(ctx, postcodeCity,
         fieldPositions.senderPostcodeCity.x,
         fieldPositions.senderPostcodeCity.y,
-        {
-          ...fieldPositions.senderPostcodeCity,
-        }
+        { ...fieldPositions.senderPostcodeCity }
       )
     }
 
@@ -247,9 +245,7 @@ export function VisualPaymentForm({
       drawText(ctx, formData.receiverName,
         fieldPositions.receiverName.x,
         fieldPositions.receiverName.y,
-        {
-          ...fieldPositions.receiverName,
-        }
+        { ...fieldPositions.receiverName }
       )
     }
 
@@ -257,9 +253,7 @@ export function VisualPaymentForm({
       drawText(ctx, formData.receiverStreet,
         fieldPositions.receiverStreet.x,
         fieldPositions.receiverStreet.y,
-        {
-          ...fieldPositions.receiverStreet,
-        }
+        { ...fieldPositions.receiverStreet }
       )
     }
 
@@ -270,9 +264,7 @@ export function VisualPaymentForm({
       drawText(ctx, postcodeCity,
         fieldPositions.receiverPostcodeCity.x,
         fieldPositions.receiverPostcodeCity.y,
-        {
-          ...fieldPositions.receiverPostcodeCity,
-        }
+        { ...fieldPositions.receiverPostcodeCity }
       )
     }
 
@@ -282,9 +274,7 @@ export function VisualPaymentForm({
       drawText(ctx, iban,
         fieldPositions.receiverIBAN.x,
         fieldPositions.receiverIBAN.y,
-        {
-          ...fieldPositions.receiverIBAN,
-        }
+        { ...fieldPositions.receiverIBAN }
       )
     }
 
@@ -293,9 +283,7 @@ export function VisualPaymentForm({
       drawText(ctx, `HR${formData.model}`,
         fieldPositions.receiverModel.x,
         fieldPositions.receiverModel.y,
-        {
-          ...fieldPositions.receiverModel,
-        }
+        { ...fieldPositions.receiverModel }
       )
     }
 
@@ -304,9 +292,7 @@ export function VisualPaymentForm({
       drawText(ctx, formData.reference,
         fieldPositions.receiverReference.x,
         fieldPositions.receiverReference.y,
-        {
-          ...fieldPositions.receiverReference,
-        }
+        { ...fieldPositions.receiverReference }
       )
     }
 
@@ -315,9 +301,7 @@ export function VisualPaymentForm({
       drawText(ctx, formData.purpose,
         fieldPositions.purposeCode.x,
         fieldPositions.purposeCode.y,
-        {
-          ...fieldPositions.purposeCode,
-        }
+        { ...fieldPositions.purposeCode }
       )
     }
 
@@ -326,9 +310,7 @@ export function VisualPaymentForm({
       drawText(ctx, formData.description,
         fieldPositions.description.x,
         fieldPositions.description.y,
-        {
-          ...fieldPositions.description,
-        }
+        { ...fieldPositions.description }
       )
     }
 
@@ -342,9 +324,7 @@ export function VisualPaymentForm({
       drawText(ctx, paddedAmount,
         fieldPositions.amount.x,
         fieldPositions.amount.y,
-        {
-          ...fieldPositions.amount,
-        }
+        { ...fieldPositions.amount }
       )
     }
 
@@ -352,9 +332,7 @@ export function VisualPaymentForm({
     drawText(ctx, "EUR",
       fieldPositions.currency.x,
       fieldPositions.currency.y,
-      {
-        ...fieldPositions.currency,
-      }
+      { ...fieldPositions.currency }
     )
 
     // RECEIPT SECTION (Potvrda)
@@ -363,9 +341,16 @@ export function VisualPaymentForm({
       drawText(ctx, amountText,
         fieldPositions.receiptAmount.x,
         fieldPositions.receiptAmount.y,
-        {
-          ...fieldPositions.receiptAmount,
-        }
+        { ...fieldPositions.receiptAmount }
+      )
+    }
+
+    // ADDED: Sender Name on Receipt
+    if (formData.senderName) {
+      drawText(ctx, formData.senderName,
+        fieldPositions.receiptSenderName.x,
+        fieldPositions.receiptSenderName.y,
+        { ...fieldPositions.receiptSenderName }
       )
     }
 
@@ -373,20 +358,16 @@ export function VisualPaymentForm({
       drawText(ctx, formData.iban.replace(/\s/g, ''),
         fieldPositions.receiptReceiverIBAN.x,
         fieldPositions.receiptReceiverIBAN.y,
-        {
-          ...fieldPositions.receiptReceiverIBAN,
-        }
+        { ...fieldPositions.receiptReceiverIBAN }
       )
     }
 
-    if (formData.model && formData.reference) {
+    if (formData.model || formData.reference) {
       const modelRef = `HR${formData.model} ${formData.reference}`
       drawText(ctx, modelRef,
         fieldPositions.receiptReceiverModelRef.x,
         fieldPositions.receiptReceiverModelRef.y,
-        {
-          ...fieldPositions.receiptReceiverModelRef,
-        }
+        { ...fieldPositions.receiptReceiverModelRef }
       )
     }
 
@@ -394,9 +375,7 @@ export function VisualPaymentForm({
       drawText(ctx, formData.description,
         fieldPositions.receiptDescription.x,
         fieldPositions.receiptDescription.y,
-        {
-          ...fieldPositions.receiptDescription,
-        }
+        { ...fieldPositions.receiptDescription }
       )
     }
 
@@ -464,7 +443,6 @@ export function VisualPaymentForm({
     }, 100); 
   }, [renderForm]);
 
-  // Common rendering for both inline and modal view
   const visualContent = (
     <>
       <div className="relative w-full overflow-auto rounded-lg border bg-white">
@@ -475,9 +453,7 @@ export function VisualPaymentForm({
           alt="HUB 3A Payment Form Template"
           className="w-full h-auto"
           onLoad={handleImageLoad}
-          // Always allow zoom-in behavior for inline view
           style={!isModalView ? { cursor: 'zoom-in' } : undefined}
-          // Always opens modal on click for inline view
           onClick={!isModalView ? () => setIsModalOpen(true) : undefined}
         />
         <canvas
@@ -486,7 +462,7 @@ export function VisualPaymentForm({
           style={{ imageRendering: 'crisp-edges' }}
         />
       </div>
-      {!isModalView && ( // Only show text in the main view
+      {!isModalView && (
         <p className="mt-2 text-xs text-muted-foreground text-center">
           Uplatnica se ažurira dok tipkate. Barkod će se pojaviti nakon uspješnog generiranja.
         </p>
@@ -500,6 +476,7 @@ export function VisualPaymentForm({
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm">Vizualni prikaz uplatnice</CardTitle>
           <div className="flex gap-2">
+            
             <Button
               variant="ghost"
               size="sm"
@@ -510,7 +487,7 @@ export function VisualPaymentForm({
               <Download className="h-3 w-3" />
             </Button>
             
-            {!isModalView && ( // Show expand button only in the inline view
+            {!isModalView && (
               <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                 <DialogTrigger asChild>
                   <Button
@@ -535,7 +512,7 @@ export function VisualPaymentForm({
                     <VisualPaymentForm
                       formData={formData}
                       barcodeUrl={barcodeUrl}
-                      isModalView={true} // Indicate that this is the modal instance
+                      isModalView={true}
                     />
                   </div>
                 </DialogContent>
