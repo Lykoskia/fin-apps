@@ -1,10 +1,11 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, Bug } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { PaymentFormData } from "@/lib/schema"
+import Image from "next/image"
 
 interface VisualPaymentFormProps {
   formData: PaymentFormData
@@ -12,24 +13,6 @@ interface VisualPaymentFormProps {
   isVisible?: boolean
 }
 
-/**
- * VisualPaymentForm Component
- * 
- * This component renders a visual representation of the Croatian HUB 3A payment form.
- * It overlays form field values onto the official form template in real-time as the user types.
- * 
- * Key Features:
- * - Real-time text overlay on the form image
- * - Barcode placement after successful form submission
- * - Maintains sync with form state
- * - Character-by-character updates
- * - Proper Croatian character support
- * 
- * Form Structure (HUB 3A):
- * - PLATITELJ (Sender): name and address only - no IBAN/model/reference
- * - PRIMATELJ (Receiver): name, address, IBAN, model, reference
- * - Payment details: amount, purpose, description
- */
 export function VisualPaymentForm({ 
   formData, 
   barcodeUrl,
@@ -39,46 +22,40 @@ export function VisualPaymentForm({
   const imageRef = useRef<HTMLImageElement>(null)
   const [showVisual, setShowVisual] = useState(isVisible)
   const [imageLoaded, setImageLoaded] = useState(false)
+  const [debugMode, setDebugMode] = useState(false) // NEW: Debug mode toggle
 
-  // Form field positions - calibrated to match the HUB 3A form layout
-  // These coordinates are approximate and may need fine-tuning based on the actual image
+  // Coordinates calibrated for 2656x1345 image
+  // Fine-tune these using debug mode (click the Bug icon)
   const FIELD_POSITIONS = {
-    // Left side - Main form
-    // SENDER (PLATITELJ) - only name and address, NO IBAN/model/reference
-    senderName: { x: 90, y: 108, maxWidth: 280, fontSize: 11 },
-    senderAddress: { x: 90, y: 123, maxWidth: 280, fontSize: 10 },
+    // SENDER (PLATITELJ) - only name and address
+    senderName: { x: 150, y: 120, maxWidth: 450, fontSize: 16 },
+    senderAddress: { x: 150, y: 145, maxWidth: 450, fontSize: 14 },
     
     // RECEIVER (PRIMATELJ) - has everything
-    receiverName: { x: 90, y: 273, maxWidth: 280, fontSize: 11 },
-    receiverAddress: { x: 90, y: 288, maxWidth: 280, fontSize: 10 },
-    receiverIBAN: { x: 435, y: 237, maxWidth: 350, fontSize: 11, mono: true, spacing: 12 },
-    receiverModel: { x: 435, y: 272, maxWidth: 70, fontSize: 11, mono: true, spacing: 12 },
-    receiverReference: { x: 535, y: 272, maxWidth: 250, fontSize: 11, mono: true, spacing: 12 },
+    receiverName: { x: 150, y: 360, maxWidth: 450, fontSize: 16 },
+    receiverAddress: { x: 150, y: 385, maxWidth: 450, fontSize: 14 },
+    receiverIBAN: { x: 600, y: 310, maxWidth: 550, fontSize: 16, mono: true, spacing: 18 },
+    receiverModel: { x: 600, y: 360, maxWidth: 110, fontSize: 16, mono: true, spacing: 18 },
+    receiverReference: { x: 750, y: 360, maxWidth: 400, fontSize: 16, mono: true, spacing: 18 },
     
     // Payment details
-    purposeCode: { x: 435, y: 335, maxWidth: 80, fontSize: 11 },
-    description: { x: 560, y: 335, maxWidth: 220, fontSize: 10 },
-    
-    amount: { x: 725, y: 108, maxWidth: 140, fontSize: 12, mono: true, align: 'right' },
-    currency: { x: 585, y: 108, maxWidth: 60, fontSize: 11 },
+    purposeCode: { x: 600, y: 440, maxWidth: 120, fontSize: 16 },
+    description: { x: 800, y: 440, maxWidth: 350, fontSize: 14 },
+    amount: { x: 1000, y: 120, maxWidth: 220, fontSize: 18, mono: true, align: 'right' as const },
+    currency: { x: 800, y: 120, maxWidth: 100, fontSize: 16 },
     
     // Right side - Receipt section
-    receiptCurrency: { x: 1125, y: 95, maxWidth: 200, fontSize: 10 },
-    receiptAmount: { x: 1125, y: 95, maxWidth: 340, fontSize: 10, align: 'right' },
-    receiptSenderName: { x: 1125, y: 153, maxWidth: 340, fontSize: 9 },
-    receiptReceiverIBAN: { x: 1125, y: 235, maxWidth: 340, fontSize: 10 },
-    receiptReceiverModelRef: { x: 1125, y: 280, maxWidth: 340, fontSize: 10 },
-    receiptDescription: { x: 1125, y: 333, maxWidth: 340, fontSize: 9 },
+    receiptAmount: { x: 1900, y: 100, maxWidth: 540, fontSize: 14, align: 'right' as const },
+    receiptSenderName: { x: 1900, y: 180, maxWidth: 540, fontSize: 13 },
+    receiptReceiverIBAN: { x: 1900, y: 310, maxWidth: 540, fontSize: 14 },
+    receiptReceiverModelRef: { x: 1900, y: 370, maxWidth: 540, fontSize: 14 },
+    receiptDescription: { x: 1900, y: 440, maxWidth: 540, fontSize: 13 },
     
     // Barcode position (lower left)
-    barcode: { x: 95, y: 470, width: 300, height: 100 },
+    barcode: { x: 150, y: 850, width: 450, height: 150 },
   }
 
-  /**
-   * Draws text on the canvas at specified position with proper formatting
-   * Handles monospaced fonts, alignment, and character spacing
-   */
-  const drawText = (
+  const drawText = useCallback((
     ctx: CanvasRenderingContext2D,
     text: string,
     x: number,
@@ -89,6 +66,7 @@ export function VisualPaymentForm({
       mono?: boolean
       spacing?: number
       align?: 'left' | 'right' | 'center'
+      debug?: boolean
     } = {}
   ) => {
     const {
@@ -96,8 +74,24 @@ export function VisualPaymentForm({
       fontSize = 10,
       mono = false,
       spacing = 0,
-      align = 'left'
+      align = 'left',
+      debug = false
     } = options
+
+    // DEBUG MODE: Draw rectangle around text area
+    if (debug) {
+      ctx.strokeStyle = '#ff0000'
+      ctx.lineWidth = 2
+      ctx.strokeRect(x, y, maxWidth, fontSize * 1.5)
+      
+      // Draw crosshair at starting point
+      ctx.beginPath()
+      ctx.moveTo(x - 5, y)
+      ctx.lineTo(x + 5, y)
+      ctx.moveTo(x, y - 5)
+      ctx.lineTo(x, y + 5)
+      ctx.stroke()
+    }
 
     ctx.font = mono 
       ? `${fontSize}px "Courier New", monospace` 
@@ -106,14 +100,12 @@ export function VisualPaymentForm({
     ctx.textBaseline = 'top'
 
     if (mono && spacing > 0) {
-      // For monospaced text with custom spacing (like IBANs)
       let currentX = x
       for (let i = 0; i < text.length; i++) {
         ctx.fillText(text[i], currentX, y)
         currentX += spacing
       }
     } else {
-      // Regular text with alignment
       if (align === 'right') {
         ctx.textAlign = 'right'
         ctx.fillText(text, x + maxWidth, y, maxWidth)
@@ -125,13 +117,9 @@ export function VisualPaymentForm({
         ctx.fillText(text, x, y, maxWidth)
       }
     }
-  }
+  }, [])
 
-  /**
-   * Main rendering function
-   * Clears canvas and redraws all form fields and barcode (if available)
-   */
-  const renderForm = () => {
+  const renderForm = useCallback(() => {
     const canvas = canvasRef.current
     const image = imageRef.current
     
@@ -140,23 +128,27 @@ export function VisualPaymentForm({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // Set canvas size to match image
     canvas.width = image.naturalWidth
     canvas.height = image.naturalHeight
 
-    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    // ==========================================
-    // SENDER (PLATITELJ) - Name and Address ONLY
-    // ==========================================
+    // Show image dimensions in debug mode
+    if (debugMode) {
+      ctx.font = '20px Arial'
+      ctx.fillStyle = '#ff0000'
+      ctx.fillText(`Image: ${image.naturalWidth}x${image.naturalHeight}px`, 10, 30)
+    }
+
+    // SENDER
     if (formData.senderName) {
       drawText(ctx, formData.senderName, 
         FIELD_POSITIONS.senderName.x, 
         FIELD_POSITIONS.senderName.y,
         { 
           maxWidth: FIELD_POSITIONS.senderName.maxWidth,
-          fontSize: FIELD_POSITIONS.senderName.fontSize 
+          fontSize: FIELD_POSITIONS.senderName.fontSize,
+          debug: debugMode
         }
       )
     }
@@ -173,23 +165,21 @@ export function VisualPaymentForm({
         FIELD_POSITIONS.senderAddress.y,
         {
           maxWidth: FIELD_POSITIONS.senderAddress.maxWidth,
-          fontSize: FIELD_POSITIONS.senderAddress.fontSize
+          fontSize: FIELD_POSITIONS.senderAddress.fontSize,
+          debug: debugMode
         }
       )
     }
 
-    // NOTE: Sender IBAN, model, and reference are NOT drawn - they don't exist in your form!
-
-    // ==========================================
-    // RECEIVER (PRIMATELJ) - Has everything
-    // ==========================================
+    // RECEIVER
     if (formData.receiverName) {
       drawText(ctx, formData.receiverName,
         FIELD_POSITIONS.receiverName.x,
         FIELD_POSITIONS.receiverName.y,
         {
           maxWidth: FIELD_POSITIONS.receiverName.maxWidth,
-          fontSize: FIELD_POSITIONS.receiverName.fontSize
+          fontSize: FIELD_POSITIONS.receiverName.fontSize,
+          debug: debugMode
         }
       )
     }
@@ -206,12 +196,13 @@ export function VisualPaymentForm({
         FIELD_POSITIONS.receiverAddress.y,
         {
           maxWidth: FIELD_POSITIONS.receiverAddress.maxWidth,
-          fontSize: FIELD_POSITIONS.receiverAddress.fontSize
+          fontSize: FIELD_POSITIONS.receiverAddress.fontSize,
+          debug: debugMode
         }
       )
     }
 
-    // Receiver IBAN (this is THE iban field from your form)
+    // Receiver IBAN
     if (formData.iban && formData.iban.length > 2) {
       const iban = formData.iban.replace(/\s/g, '')
       drawText(ctx, iban,
@@ -221,12 +212,13 @@ export function VisualPaymentForm({
           maxWidth: FIELD_POSITIONS.receiverIBAN.maxWidth,
           fontSize: FIELD_POSITIONS.receiverIBAN.fontSize,
           mono: true,
-          spacing: FIELD_POSITIONS.receiverIBAN.spacing
+          spacing: FIELD_POSITIONS.receiverIBAN.spacing,
+          debug: debugMode
         }
       )
     }
 
-    // Receiver Model and Reference (these are THE model/reference fields from your form)
+    // Receiver Model
     if (formData.model && formData.model !== "00") {
       drawText(ctx, `HR${formData.model}`,
         FIELD_POSITIONS.receiverModel.x,
@@ -235,11 +227,13 @@ export function VisualPaymentForm({
           maxWidth: FIELD_POSITIONS.receiverModel.maxWidth,
           fontSize: FIELD_POSITIONS.receiverModel.fontSize,
           mono: true,
-          spacing: FIELD_POSITIONS.receiverModel.spacing
+          spacing: FIELD_POSITIONS.receiverModel.spacing,
+          debug: debugMode
         }
       )
     }
 
+    // Receiver Reference
     if (formData.reference) {
       drawText(ctx, formData.reference,
         FIELD_POSITIONS.receiverReference.x,
@@ -248,15 +242,12 @@ export function VisualPaymentForm({
           maxWidth: FIELD_POSITIONS.receiverReference.maxWidth,
           fontSize: FIELD_POSITIONS.receiverReference.fontSize,
           mono: true,
-          spacing: FIELD_POSITIONS.receiverReference.spacing
+          spacing: FIELD_POSITIONS.receiverReference.spacing,
+          debug: debugMode
         }
       )
     }
 
-    // ==========================================
-    // PAYMENT DETAILS
-    // ==========================================
-    
     // Purpose code
     if (formData.purpose) {
       drawText(ctx, formData.purpose,
@@ -264,7 +255,8 @@ export function VisualPaymentForm({
         FIELD_POSITIONS.purposeCode.y,
         {
           maxWidth: FIELD_POSITIONS.purposeCode.maxWidth,
-          fontSize: FIELD_POSITIONS.purposeCode.fontSize
+          fontSize: FIELD_POSITIONS.purposeCode.fontSize,
+          debug: debugMode
         }
       )
     }
@@ -276,7 +268,8 @@ export function VisualPaymentForm({
         FIELD_POSITIONS.description.y,
         {
           maxWidth: FIELD_POSITIONS.description.maxWidth,
-          fontSize: FIELD_POSITIONS.description.fontSize
+          fontSize: FIELD_POSITIONS.description.fontSize,
+          debug: debugMode
         }
       )
     }
@@ -290,26 +283,24 @@ export function VisualPaymentForm({
           maxWidth: FIELD_POSITIONS.amount.maxWidth,
           fontSize: FIELD_POSITIONS.amount.fontSize,
           mono: true,
-          align: 'right'
+          align: 'right',
+          debug: debugMode
         }
       )
     }
 
-    // Currency (always EUR for Croatian payments)
+    // Currency
     drawText(ctx, "EUR",
       FIELD_POSITIONS.currency.x,
       FIELD_POSITIONS.currency.y,
       {
         maxWidth: FIELD_POSITIONS.currency.maxWidth,
-        fontSize: FIELD_POSITIONS.currency.fontSize
+        fontSize: FIELD_POSITIONS.currency.fontSize,
+        debug: debugMode
       }
     )
 
-    // ==========================================
-    // RECEIPT SECTION (Right side)
-    // ==========================================
-    
-    // Currency and amount
+    // RECEIPT SECTION
     if (formData.amount && formData.amount !== "0,00") {
       const amountText = `EUR ${formData.amount}`
       drawText(ctx, amountText,
@@ -318,36 +309,36 @@ export function VisualPaymentForm({
         {
           maxWidth: FIELD_POSITIONS.receiptAmount.maxWidth,
           fontSize: FIELD_POSITIONS.receiptAmount.fontSize,
-          align: 'right'
+          align: 'right',
+          debug: debugMode
         }
       )
     }
 
-    // Receipt sender name
     if (formData.senderName) {
       drawText(ctx, formData.senderName,
         FIELD_POSITIONS.receiptSenderName.x,
         FIELD_POSITIONS.receiptSenderName.y,
         {
           maxWidth: FIELD_POSITIONS.receiptSenderName.maxWidth,
-          fontSize: FIELD_POSITIONS.receiptSenderName.fontSize
+          fontSize: FIELD_POSITIONS.receiptSenderName.fontSize,
+          debug: debugMode
         }
       )
     }
 
-    // Receipt receiver IBAN
     if (formData.iban && formData.iban.length > 2) {
       drawText(ctx, formData.iban,
         FIELD_POSITIONS.receiptReceiverIBAN.x,
         FIELD_POSITIONS.receiptReceiverIBAN.y,
         {
           maxWidth: FIELD_POSITIONS.receiptReceiverIBAN.maxWidth,
-          fontSize: FIELD_POSITIONS.receiptReceiverIBAN.fontSize
+          fontSize: FIELD_POSITIONS.receiptReceiverIBAN.fontSize,
+          debug: debugMode
         }
       )
     }
 
-    // Receipt model and reference (for receiver)
     if (formData.model && formData.reference && formData.model !== "00") {
       const modelRef = `HR${formData.model} ${formData.reference}`
       drawText(ctx, modelRef,
@@ -355,28 +346,38 @@ export function VisualPaymentForm({
         FIELD_POSITIONS.receiptReceiverModelRef.y,
         {
           maxWidth: FIELD_POSITIONS.receiptReceiverModelRef.maxWidth,
-          fontSize: FIELD_POSITIONS.receiptReceiverModelRef.fontSize
+          fontSize: FIELD_POSITIONS.receiptReceiverModelRef.fontSize,
+          debug: debugMode
         }
       )
     }
 
-    // Receipt description
     if (formData.description) {
       drawText(ctx, formData.description,
         FIELD_POSITIONS.receiptDescription.x,
         FIELD_POSITIONS.receiptDescription.y,
         {
           maxWidth: FIELD_POSITIONS.receiptDescription.maxWidth,
-          fontSize: FIELD_POSITIONS.receiptDescription.fontSize
+          fontSize: FIELD_POSITIONS.receiptDescription.fontSize,
+          debug: debugMode
         }
       )
     }
 
-    // ==========================================
-    // BARCODE (only after successful submission)
-    // ==========================================
+    // BARCODE
     if (barcodeUrl) {
-      const barcodeImage = new Image()
+      if (debugMode) {
+        ctx.strokeStyle = '#00ff00'
+        ctx.lineWidth = 3
+        ctx.strokeRect(
+          FIELD_POSITIONS.barcode.x,
+          FIELD_POSITIONS.barcode.y,
+          FIELD_POSITIONS.barcode.width,
+          FIELD_POSITIONS.barcode.height
+        )
+      }
+      
+      const barcodeImage = new window.Image()
       barcodeImage.crossOrigin = "anonymous"
       barcodeImage.onload = () => {
         ctx.drawImage(
@@ -388,22 +389,36 @@ export function VisualPaymentForm({
         )
       }
       barcodeImage.src = barcodeUrl
+    } else if (debugMode) {
+      // Show barcode placeholder in debug mode
+      ctx.strokeStyle = '#00ff00'
+      ctx.lineWidth = 3
+      ctx.strokeRect(
+        FIELD_POSITIONS.barcode.x,
+        FIELD_POSITIONS.barcode.y,
+        FIELD_POSITIONS.barcode.width,
+        FIELD_POSITIONS.barcode.height
+      )
+      ctx.font = '14px Arial'
+      ctx.fillStyle = '#00ff00'
+      ctx.fillText('BARCODE AREA', FIELD_POSITIONS.barcode.x + 10, FIELD_POSITIONS.barcode.y + 50)
     }
-  }
+  }, [formData, barcodeUrl, imageLoaded, drawText, FIELD_POSITIONS, debugMode])
 
-  // Re-render whenever form data or barcode changes
   useEffect(() => {
     if (imageLoaded) {
       renderForm()
     }
-  }, [formData, barcodeUrl, imageLoaded])
+  }, [renderForm, imageLoaded])
 
-  // Handle image load
+  const handleImageLoad = useCallback(() => {
+    setImageLoaded(true)
+  }, [])
+
   useEffect(() => {
     const image = imageRef.current
     if (image && image.complete) {
       setImageLoaded(true)
-      renderForm()
     }
   }, [])
 
@@ -432,30 +447,44 @@ export function VisualPaymentForm({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm">Vizualni prikaz uplatnice</CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowVisual(false)}
-            className="h-6 w-6 p-0"
-          >
-            <EyeOff className="h-3 w-3" />
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDebugMode(!debugMode)}
+              className="h-6 w-6 p-0"
+              title={debugMode ? "Isključi debug način" : "Uključi debug način"}
+            >
+              <Bug className={`h-3 w-3 ${debugMode ? 'text-red-500' : ''}`} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowVisual(false)}
+              className="h-6 w-6 p-0"
+            >
+              <EyeOff className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
+        {debugMode && (
+          <div className="mb-2 rounded bg-red-50 p-2 text-xs text-red-700">
+            <strong>Debug mode:</strong> Red boxes show text areas. Update coordinates in FIELD_POSITIONS.
+          </div>
+        )}
         <div className="relative w-full overflow-auto rounded-lg border bg-white">
-          {/* Base form image */}
-          <img
+          <Image
             ref={imageRef}
             src="/hub3a-form.png"
             alt="HUB 3A Payment Form Template"
+            width={2656}
+            height={1345}
             className="w-full h-auto"
-            onLoad={() => {
-              setImageLoaded(true)
-              renderForm()
-            }}
+            onLoad={handleImageLoad}
+            priority
           />
-          {/* Canvas overlay for text and barcode */}
           <canvas
             ref={canvasRef}
             className="absolute top-0 left-0 w-full h-full pointer-events-none"
