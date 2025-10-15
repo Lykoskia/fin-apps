@@ -57,6 +57,7 @@ import {
   Terminal,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { VisualPaymentForm } from "./VisualPaymentForm"
 
 // Import the PDF generation utility
 import { generatePaymentPdf } from "@/lib/generate-payment-pdf"
@@ -1018,7 +1019,7 @@ export default function PaymentForm() {
   const [barcodeUrl, setBarcodeUrl] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
   const [isPdfGenerating, setIsPdfGenerating] = useState(false)
-  const [currentFormUrl, setCurrentFormUrl] = useState<string>("") // NEW: State for form URL
+  const [currentFormUrl, setCurrentFormUrl] = useState<string>("")
   const { searchParams, setSearchParams } = useSearchParamsState()
 
   const { toast } = useToast()
@@ -1043,12 +1044,11 @@ export default function PaymentForm() {
     },
   })
 
-  // NEW: Callback to receive the form URL from FormLinkComponent
   const handleFormUrlChange = useCallback((url: string) => {
     setCurrentFormUrl(url)
   }, [])
 
-  // Clear reference when model is 99 (already present in ReferenceNumberInput and in schema)
+  // Clear reference when model is 99
   useEffect(() => {
     const model = form.watch("model")
     const reference = form.watch("reference")
@@ -1092,32 +1092,27 @@ export default function PaymentForm() {
         console.error("Error parsing saved sender data:", e)
       }
     }
-  }, [form]) // Added form to dependency array
+  }, [form])
 
-  // Handler for barcode decoding - properly typed
   const handleBarcodeDecoded = useCallback(
     (decodedData: Partial<PaymentFormData>) => {
-      console.log("Decoded barcode data:", decodedData) // For debugging
+      console.log("Decoded barcode data:", decodedData)
 
-      // Update the form with decoded data
       form.reset({
-        ...form.getValues(), // Keep any existing values
-        ...decodedData, // Override with decoded data
+        ...form.getValues(),
+        ...decodedData,
       })
 
-      // Clear existing barcode since we're loading new data
       setBarcodeUrl("")
 
-      // Update URL params to reflect the new form state
       const newParams = new URLSearchParams()
       Object.entries(decodedData).forEach(([key, value]) => {
         if (value && value !== "") {
-          newParams.set(key, String(value)) // Ensure value is string for URLSearchParams
+          newParams.set(key, String(value))
         }
       })
       setSearchParams(newParams)
 
-      // Show success message
       toast({
         title: "Barkod uspješno učitan",
         description: "Podaci su uneseni u obrazac. Možete ih sada mijenjati po potrebi.",
@@ -1126,7 +1121,6 @@ export default function PaymentForm() {
     [form, setSearchParams, toast],
   )
 
-  // Properly typed handlers for EnhancedDataManager
   const handleSenderDataLoad: EnhancedDataManagerCallback = useCallback(
     (data) => {
       form.setValue("senderName", data.senderName || "")
@@ -1148,7 +1142,6 @@ export default function PaymentForm() {
     [form],
   )
 
-  // Handler for IBAN Calculator
   const handleIBANSelect = useCallback(
     (iban: string) => {
       form.setValue("iban", iban)
@@ -1374,10 +1367,9 @@ export default function PaymentForm() {
     setIsPdfGenerating(true)
     try {
       const currentFormData = form.getValues()
-      // Use currentFormUrl received from FormLinkComponent
       await generatePaymentPdf({
         formData: currentFormData,
-        barcodeImageUrl: barcodeUrl, // Pass the currently generated barcode URL
+        barcodeImageUrl: barcodeUrl,
         formLink: currentFormUrl,
       })
 
@@ -1411,7 +1403,7 @@ export default function PaymentForm() {
       iban: "HR8323600009999999991",
       amount: "9.999,99",
       model: "00",
-      reference: "123-456-789", // This is now valid with P1(3)-P2(3)-P3(3) fitting max 12
+      reference: "123-456-789",
       purpose: "OTHR",
       description: "Uplata",
     }
@@ -1456,13 +1448,8 @@ export default function PaymentForm() {
             onDataLoad={handleSenderDataLoad}
           />
 
-          {/* IBAN Structure Analysis */}
           <IBANStructureDisplay iban={form.watch("iban")} />
-
-          {/* IBAN Control Digit Calculator */}
           <IBANControlDigitCalculator iban={form.watch("iban")} />
-
-          {/* IBAN Validation Analysis */}
           <IBANValidationDisplay iban={form.watch("iban")} />
         </div>
 
@@ -1488,7 +1475,6 @@ export default function PaymentForm() {
               </Button>
             </div>
 
-            {/* BARCODE DECODER */}
             <div className="mb-8">
               <BarcodeDecoder onDataDecoded={handleBarcodeDecoded} />
             </div>
@@ -1602,7 +1588,6 @@ export default function PaymentForm() {
                     />
                   </div>
 
-                  {/* Use the corrected PlaceLookup component */}
                   <PlaceLookup section="receiver" form={form} />
                 </div>
 
@@ -1788,7 +1773,6 @@ export default function PaymentForm() {
                   </div>
                 </div>
 
-                {/* Overall Validation Summary */}
                 <ValidationSummaryCard iban={form.watch("iban")} />
 
                 <div className="flex justify-center">
@@ -1843,10 +1827,9 @@ export default function PaymentForm() {
                     >
                       <LuShare2 className="mr-2 h-4 w-4" /> Podijeli
                     </Button>
-                    {/* New PDF button */}
                     <Button
                       onClick={handleGeneratePdf}
-                      disabled={isPdfGenerating || !barcodeUrl || !currentFormUrl} // Disable if already generating or no barcode or no form URL
+                      disabled={isPdfGenerating || !barcodeUrl || !currentFormUrl}
                       className="shadow-blue-500 hover:shadow-purple-500 hover:scale-105 hover:opacity-75 shadow-md"
                     >
                       {isPdfGenerating ? (
@@ -1864,10 +1847,19 @@ export default function PaymentForm() {
                 </CardContent>
               </Card>
             )}
+            
             <FormLinkComponent
               watch={form.watch}
               onFormUrlChange={handleFormUrlChange}
             />
+
+            {/* NEW: Visual Payment Form */}
+            <div className="mt-8">
+              <VisualPaymentForm
+                formData={form.watch()}
+                barcodeUrl={barcodeUrl}
+              />
+            </div>
           </CardContent>
           {(isLoading || isPdfGenerating) && <LoadingSpinner />}
         </Card>
@@ -1886,7 +1878,6 @@ export default function PaymentForm() {
             onDataLoad={handleReceiverDataLoad}
           />
 
-          {/* Bank Code & Account Number Validation */}
           <BankAccountValidationDisplay iban={form.watch("iban")} />
         </div>
       </div>
@@ -1914,14 +1905,12 @@ export default function PaymentForm() {
               </Button>
             </div>
 
-            {/* BARCODE DECODER for mobile */}
             <div className="mb-8">
               <BarcodeDecoder onDataDecoded={handleBarcodeDecoded} />
             </div>
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* Mobile form content - same as desktop but without sidebars */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">Pošiljatelj</h3>
                   <div className="space-y-4">
@@ -1972,7 +1961,6 @@ export default function PaymentForm() {
                       )}
                     />
 
-                    {/* Corrected PlaceLookup for mobile */}
                     <PlaceLookup section="sender" form={form} />
                   </div>
                 </div>
@@ -2027,7 +2015,6 @@ export default function PaymentForm() {
                       )}
                     />
 
-                    {/* Corrected PlaceLookup for mobile */}
                     <PlaceLookup section="receiver" form={form} />
                   </div>
                 </div>
@@ -2035,7 +2022,6 @@ export default function PaymentForm() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">Podaci o plaćanju</h3>
 
-                  {/* IBAN Calculator for mobile */}
                   <div className="mb-4">
                     <IBANCalculator onIBANSelect={handleIBANSelect} />
                   </div>
@@ -2270,7 +2256,6 @@ export default function PaymentForm() {
                     >
                       <LuShare2 className="mr-2 h-4 w-4" /> Podijeli
                     </Button>
-                    {/* New PDF button for mobile */}
                     <Button
                       onClick={handleGeneratePdf}
                       disabled={isPdfGenerating || !barcodeUrl || !currentFormUrl}
@@ -2296,6 +2281,14 @@ export default function PaymentForm() {
               watch={form.watch}
               onFormUrlChange={handleFormUrlChange}
             />
+
+            {/* NEW: Visual Payment Form for mobile */}
+            <div className="mt-8">
+              <VisualPaymentForm
+                formData={form.watch()}
+                barcodeUrl={barcodeUrl}
+              />
+            </div>
 
             {/* Mobile validation components */}
             <div className="mt-8 space-y-4">
