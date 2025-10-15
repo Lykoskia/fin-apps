@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Eye, EyeOff, Bug } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { PaymentFormData } from "@/lib/schema"
-import Image from "next/image"
 
 interface VisualPaymentFormProps {
   formData: PaymentFormData
@@ -475,15 +474,14 @@ export function VisualPaymentForm({
           </div>
         )}
         <div className="relative w-full overflow-auto rounded-lg border bg-white">
-          <Image
+          {/* Use regular img instead of Next.js Image to prevent optimization */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             ref={imageRef}
             src="/hub3a-form.png"
             alt="HUB 3A Payment Form Template"
-            width={1200}
-            height={607}
             className="w-full h-auto"
             onLoad={handleImageLoad}
-            priority
           />
           <canvas
             ref={canvasRef}
