@@ -1454,7 +1454,7 @@ export default function PaymentForm() {
         </div>
 
         {/* Center - Main Form */}
-        <Card className="mx-auto w-full max-w-7xl bg-background">
+        <Card className="mx-auto w-full lg:min-w-2xl max-w-7xl bg-background">
           <CardHeader>
             <CardTitle className="text-center">Barkod za plaćanje</CardTitle>
           </CardHeader>
