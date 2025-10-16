@@ -1835,7 +1835,7 @@ export default function PaymentForm() {
                       {isPdfGenerating ? (
                         <>
                           <LuLoader className="mr-2 h-4 w-4 animate-spin" />
-                          Generiram PDF...
+                          Generiram...
                         </>
                       ) : (
                         <>
@@ -2264,11 +2264,11 @@ export default function PaymentForm() {
                       {isPdfGenerating ? (
                         <>
                           <LuLoader className="mr-2 h-4 w-4 animate-spin" />
-                          Generiram PDF...
+                          Generiram...
                         </>
                       ) : (
                         <>
-                          <LuFileText className="mr-2 h-4 w-4" /> Generiraj PDF
+                          <LuFileText className="mr-2 h-4 w-4" /> PDF
                         </>
                       )}
                     </Button>
