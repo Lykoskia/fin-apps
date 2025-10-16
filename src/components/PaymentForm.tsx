@@ -1434,7 +1434,7 @@ export default function PaymentForm() {
   return (
     <div className="w-full">
       {/* Large screen layout: 3 columns */}
-      <div className="hidden xl:grid xl:grid-cols-[320px,1fr,320px] xl:gap-6 xl:items-start">
+      <div className="hidden xl:grid xl:grid-cols-[320px,1fr,320px] xl:gap-4 xl:items-start">
         {/* Left sidebar - Saved Senders + IBAN Analysis */}
         <div className="sticky top-4 space-y-4">
           <EnhancedDataManager
@@ -1839,7 +1839,7 @@ export default function PaymentForm() {
                         </>
                       ) : (
                         <>
-                          <LuFileText className="mr-2 h-4 w-4" /> Generiraj PDF
+                          <LuFileText className="mr-2 h-4 w-4" /> PDF
                         </>
                       )}
                     </Button>

@@ -10,8 +10,8 @@ export const metadata = {
 
 export default function BarcodeGeneratorPage() {
   return (
-    <main className="min-h-screen p-4 xl:p-6">
-      <div className="max-w-[1920px] mx-auto space-y-8">
+    <main className="min-h-screen w-full p-4 xl:p-6">
+      <div className="space-y-8">
 
         {/* Page Header */}
         <div className="space-y-4">
